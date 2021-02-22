@@ -250,6 +250,22 @@ public:
 };
 */
 // > means newer
+unsigned int returnIndex(unsigned int i, unsigned int j, unsigned int maxKF){
+
+
+    // maxKF starts at 0
+
+    int idx= (maxKF+1) * j + i;
+
+
+    return (idx);
+
+
+}
+
+
+
+
 Eigen::Matrix4d parseData(int srcKF, int dstKF, int srcT, int dstT, vector<vector<string>> transforms)
 {
     bool invFlag=false;
@@ -565,11 +581,52 @@ void DmeansFn(std::vector<tf::Quaternion> num_test)
 
 }
 */
+
+
+se3 se3Inverse(se3 data){
+
+
+
+    tf::Matrix3x3 m0(data.q);
+
+    Eigen::Matrix3d Rot;
+    Eigen::Matrix4d T =Eigen::Matrix4d::Identity();
+
+    tf::matrixTFToEigen(m0, Rot);
+    T.block(0,0,3,3)=Rot;
+
+    T(0,3)=temporalTQ.t.x();
+    T(1,3)=temporalTQ.t.y();
+    T(2,3)=temporalTQ.t.z();
+    T=T.inverse();
+
+    se3 out;
+
+    out.t.x()=T(0,3);
+    out.t.y()=T(1,3);
+    out.t.z()=T(2,3);
+
+    Rot=T.block(0,0,3,3);
+
+    Eigen::Quaterniond q (Rot);
+
+    out.q.x()=q.x();
+    out.q.y()=q.y();
+    out.q.z()=q.z();
+    out.q.w()=q.w();
+
+
+
+    return out;
+
+}
+
 int main(int argc, char *argv[]){
 
 
-    std::ofstream output;
+    std::ofstream output, graphInput;
     output.open("ol_transforms.csv");
+    graphInput.open("graph_input.csv");
 
     //---------------------------------------------------------
     std::ifstream infile("transforms.csv");
@@ -1211,8 +1268,18 @@ int main(int argc, char *argv[]){
 
             output<<i<<","<<j<<","<<T(0,3)<<","<<T(1,3)<<","<<T(2,3)<<","<<q.x()<<","<<q.y()<<","<<q.z()<<","<<q.w()<<","<<(j==t0)<<endl;
 
+            se3 fPose;
 
+            fPose.q.x()=q.x();
+            fPose.q.y()=q.y();
+            fPose.q.z()=q.z();
+            fPose.q.w()=q.w();
 
+            fPose.t.x()=T(0,3);
+            fPose.t.y()=T(1,3);
+            fPose.t.z()=T(2,3);
+
+            olTransformsTemp.push_back(fPose);
 
         }
         olTransforms.push_back(olTransformsTemp);
@@ -1222,6 +1289,40 @@ int main(int argc, char *argv[]){
     output.close();
 
     return 0;
+
+
+    int maxNodes=(maxKF+1)*(maxT+1);
+
+    for (int i=0; i<=maxKF;i++){
+        for (int j=0; j<maxT; j++){
+
+            unsigned int serialIdx0=returnIndex(i,j,maxKF);  //S(Q0,t0)
+            unsigned int serialIdx1=returnIndex(i+1,j,maxKF); //S(Q1,t0)
+            unsigned int serialIdx2=returnIndex(i,j+1,maxKF); //(SQ0,t1)
+
+
+
+
+
+            se3 temporalTQ0=temporalTfs[i][j];
+            se3 temporalTQ1=temporalTfs[i+1][j];
+            se3 temporalTQ2=temporalTfs[i][j+1];
+
+            se3 L1=se3Inverse(temporalTQ0)  *  temporalTQ1;
+            se3 L2=se3Inverse(temporalTQ0)*temporalTQ2;
+
+
+
+
+
+
+            graphInput << serialIdx0, serialIdx1, L1.t.x(),         ;//from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+
+
+        }
+    }
+
+    graphInput.close();
 }
 
 
