@@ -250,13 +250,18 @@ public:
 };
 */
 // > means newer
-unsigned int returnIndex(unsigned int i, unsigned int j, unsigned int maxKF){
+unsigned int returnIndex(unsigned int i, unsigned int j, unsigned int maxKF, bool closeLoop){
 
 
     // maxKF starts at 0
 
     int idx= (maxKF+1) * j + i;
 
+    if (closeLoop){
+
+        return (idx-1);
+
+    }
 
     return (idx);
 
@@ -1041,6 +1046,7 @@ int main(int argc, char *argv[]){
 
 
     vector<se3> spatialVecData(maxKF+1, defSe3);
+    vector<double> uncertaintyCoeff(maxKF+1, 0);
     for(unsigned int i=1; i<=maxKF; i++){
         unsigned int t0=parentFrames[i];
         cout<<"this is Spatial KF "<<i<<endl;
@@ -1228,6 +1234,9 @@ int main(int argc, char *argv[]){
 
             }
             spatialVecData[i]=dataOut[currentKk].back();
+            uncertaintyCoeff[i]=x;
+
+
 
         }
 
@@ -1340,11 +1349,12 @@ int main(int argc, char *argv[]){
     int maxNodes=(maxKF+1)*(maxT+1);
 
     for (int i=sNode; i<maxKF;i++){
+        double uncertainty=uncertaintyCoeff[i+1]; //because links to previous frame, here linking to forward frame
         for (int j=0; j<maxT; j++){
 
-            unsigned int serialIdx0=returnIndex(i,j,maxKF);  //S(Q0,t0)     //each kf is represented by a node tied to the node to the right and the node below it.
-            unsigned int serialIdx1=returnIndex(i+1,j,maxKF); //S(Q1,t0)
-            unsigned int serialIdx2=returnIndex(i,j+1,maxKF); //(SQ0,t1)
+            unsigned int serialIdx0=returnIndex(i,j,maxKF,closeLoop);  //S(Q0,t0)     //each kf is represented by a node tied to the node to the right and the node below it.
+            unsigned int serialIdx1=returnIndex(i+1,j,maxKF,closeLoop); //S(Q1,t0)
+            unsigned int serialIdx2=returnIndex(i,j+1,maxKF,closeLoop); //(SQ0,t1)
 
             se3 TQ0=olTransforms[i][j];
             se3 TQ1=olTransforms[i+1][j];
@@ -1356,14 +1366,14 @@ int main(int argc, char *argv[]){
             L1=se3Mult(L1,TQ1);
             L2=se3Mult(L2,TQ2);
 
-            graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
-            graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+            graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<uncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+            graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w()<<","<<-1  <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
 
             if (i==maxKF-1){  //handle last KF cz it has only temporal constraints
 
 
-                serialIdx0=returnIndex(maxKF,j,maxKF);  //S(Q0,t0)
-                serialIdx2=returnIndex(maxKF,j+1,maxKF); //(SQ0,t1)
+                serialIdx0=returnIndex(maxKF,j,maxKF,closeLoop);  //S(Q0,t0)
+                serialIdx2=returnIndex(maxKF,j+1,maxKF,closeLoop); //(SQ0,t1)
 
                 TQ0=olTransforms[maxKF][j];
                 TQ2=olTransforms[maxKF][j+1];
@@ -1372,12 +1382,12 @@ int main(int argc, char *argv[]){
 
                 L2=se3Mult(L2,TQ2);
 
-                graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+                graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w()<<","<<-1<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
 
                 if (closeLoop){    //handle spatial loop closure constraint
 
-                    serialIdx0=returnIndex(maxKF,j,maxKF);  //S(Q0,t0)
-                    serialIdx1=returnIndex(1,j,maxKF); //S(Q1,t0)
+                    serialIdx0=returnIndex(maxKF,j,maxKF,closeLoop);  //S(Q0,t0)
+                    serialIdx1=returnIndex(1,j,maxKF,closeLoop); //S(Q1,t0)
 
                     Eigen::Matrix4d T1=parseData(1, 0, j, j, transforms);
 
@@ -1389,14 +1399,14 @@ int main(int argc, char *argv[]){
                     L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
                     L1.t=tf::Vector3(T1(0,3),T1(1,3),T1(2,3));
 
-                    graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+                    graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<1 <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
 
 
 
                     if (j=maxT-1){   //bottom left node, loop closure constraint
 
-                        serialIdx0=returnIndex(maxKF,maxT,maxKF);  //S(Q0,t0)
-                        serialIdx1=returnIndex(1,maxT,maxKF); //S(Q1,t0)
+                        serialIdx0=returnIndex(maxKF,maxT,maxKF,closeLoop);  //S(Q0,t0)
+                        serialIdx1=returnIndex(1,maxT,maxKF,closeLoop); //S(Q1,t0)
 
                         Eigen::Matrix4d T1=parseData(1, 0, maxT, maxT, transforms);
 
@@ -1409,7 +1419,7 @@ int main(int argc, char *argv[]){
                         L1.t=tf::Vector3(T1(0,3),T1(1,3),T1(2,3));
 
 
-                        graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+                        graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<< 1 <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
 
 
 
@@ -1424,8 +1434,8 @@ int main(int argc, char *argv[]){
 
 
 
-        unsigned int serialIdx0=returnIndex(i,maxT,maxKF);  //S(Q0,t0)
-        unsigned int serialIdx1=returnIndex(i+1,maxT,maxKF); //S(Q1,t0)
+        unsigned int serialIdx0=returnIndex(i,maxT,maxKF,closeLoop);  //S(Q0,t0)
+        unsigned int serialIdx1=returnIndex(i+1,maxT,maxKF,closeLoop); //S(Q1,t0)
 
 
         se3 TQ0=olTransforms[i][maxT];
@@ -1437,7 +1447,7 @@ int main(int argc, char *argv[]){
 
         L1=se3Mult(L1,TQ1);
 
-        graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+        graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w() <<","<<uncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
 
 
     }
@@ -1446,13 +1456,14 @@ int main(int argc, char *argv[]){
     graphInput.close();
     std::cout<<"max nodes is "<<maxNodes<<endl;
 
-    for (int i=sNode; i<=maxKF;i++){
+    for (int i=0; i<=maxKF;i++){
+
         for (int j=0; j<=maxT; j++){
 
 
 
             se3 T=olTransforms[i][j];
-            int nodeIdx=returnIndex(1,j,maxKF); //S(Q1,t0)
+            int nodeIdx=returnIndex(i,j,maxKF,closeLoop); //S(Q1,t0)
             double x=T.t.x();
             double y=T.t.y();
             double z=T.t.z();
@@ -1478,7 +1489,7 @@ int main(int argc, char *argv[]){
 
             q=q.normalize();
 
-            graphInitialEstimate<<nodeIdx<<","<<x<<","<<y<<","<<z<<","<<qx<<","<<qy<<","<<qz<<","<<qw<<std::endl;
+            graphInitialEstimate<<nodeIdx<<","<<x<<","<<y<<","<<z<<","<<q.x()<<","<<q.y()<<","<<q.z()<<","<<q.w()<<std::endl;
 
 
 
@@ -1486,10 +1497,10 @@ int main(int argc, char *argv[]){
 
         }
 
-        }
-                                   graphInitialEstimate.close();
-            return 0;
-        }
+    }
+    graphInitialEstimate.close();
+    return 0;
+}
 
 
 
