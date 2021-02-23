@@ -198,57 +198,7 @@ public:
     }
 };
 
-/*
-struct DataAggregator {
-    size_t max_iter;
-    double tol;
-    DataAggregator(double tol=5e-4,size_t max_iter=100) : max_iter(max_iter), tol(tol) {}
 
-    DI operator()(DataSetIterator ds_begin, MemberSetIterator mb_begin, MemberSetIterator mb_end) const {
-        if (mb_begin == mb_end) {
-            return tf::Quaternion::getIdentity();
-        }
-        tf::Quaternion qmean = *(ds_begin + *mb_begin);
-        // std::cout << "Aggregation " << std::endl;
-        for (size_t i=0;i<max_iter;i++) {
-            // std::cout << i << std::endl;
-            tf::Quaternion qmean_prev(qmean);
-            tf::Vector3 e(0,0,0);
-            size_t count = 0;
-            for (MemberSetIterator mb_it = mb_begin; mb_it != mb_end; mb_it++) {
-                const DI & q = *(ds_begin + *mb_it);
-                e += QLog(q * qmean.inverse());
-                count += 1;
-            }
-            e /= count;
-            // std::cout << count << " " << e.x() << " " << e.y() << " " << e.z() << std::endl;
-            qmean = QExp(e) * qmean;
-            // std::cout << qmean_prev << " -> " << qmean << " " << (qmean_prev.inverse() * qmean).getAngle() << std::endl;
-            if ((qmean_prev.inverse() * qmean).getAngle() < tol) {
-                break;
-            }
-        }
-        // std::cout << "Aggregation done" << std::endl;
-        return qmean;
-    }
-};
-
-class CenterSplitter {
-protected:
-    std::normal_distribution<double> dis;
-public:
-    CenterSplitter() : dis(0,1) {}
-    template <class Generator = std::default_random_engine>
-    std::pair<DI,DI> operator()(const DI & c, double sigma, Generator & rge) {
-        tf::Vector3 l_dq(dis(rge)*sigma,dis(rge)*sigma,dis(rge)*sigma);// == log(dq)
-        tf::Quaternion dq = QExp(l_dq);
-
-        DI c1 = dq * c;
-        DI c2 = dq.inverse() * c;
-        return std::pair<DI,DI>(c1,c2);
-    }
-};
-*/
 // > means newer
 unsigned int returnIndex(unsigned int i, unsigned int j, unsigned int maxKF, bool closeLoop){
 
@@ -364,79 +314,7 @@ Eigen::Matrix4d parseData(int srcKF, int dstKF, int srcT, int dstT, vector<vecto
     return Eigen::Matrix4d::Identity();
 }
 
-/*
-void XmeansFn(std::vector<tf::Quaternion> num_test)
-{
-    std::default_random_engine rge;
-    unsigned long seedint = time(NULL);
-    // unsigned long seedint = 1612773364;
-    std::cout << "Seed: " << seedint << std::endl;
-    rge.seed(seedint);
 
-    typedef XMeansT<DI,DataSetIterator,DataMetric,DataAggregator,CenterSplitter> XMeansQ;
-
-
-
-    const unsigned int Nseed = 5;
-    std::uniform_int_distribution<unsigned int> seedSel(0,Nseed-1);
-    DI seed[Nseed];
-
-    for (unsigned int k=0;k<Nseed;k++) {
-        seed[k] = QRand(rge);
-    }
-
-
-    //for (size_t k=0;k<100;k++) {
-    //int j = seedSel(rge);
-    // num_test.push_back(dQRand(0.3,rge)*seed[j]);
-    //}
-    cout << "Number of instances: " << num_test.size() << endl;
-
-    XMeansQ::CenterSet initial_centers;
-    std::uniform_int_distribution<unsigned int> dataSel(0,99);
-    initial_centers.push_back(num_test[dataSel(rge)]);
-    initial_centers.push_back(num_test[dataSel(rge)]);
-
-    cout << "running x-means " << endl;
-
-    //minimum delta between points? not sure
-    DataMetric metric;
-    DataAggregator aggregator;
-    CenterSplitter splitter;
-    XMeansQ x(num_test.begin(), num_test.end(), initial_centers, N,
-              metric, aggregator, splitter,
-              10, 1e-3);
-
-    x.process();
-
-    const ClusterSet & clusters = x.clusters() ;
-    unsigned int n_clusters = clusters.size();
-
-
-    std::ofstream ocenters ("center", std::ofstream::out);
-    std::ofstream odata ("data", std::ofstream::out);
-    cout << "X-MEANS found " << n_clusters << " clusters." << endl;
-    for(unsigned int i=0; i<n_clusters; i++){
-        const Membership & c = clusters[i];
-        ocenters << x.centers()[i] << " " << i << std::endl;
-        cout << "CLUSTER "<<i<<" centered on " << x.centers()[i] << " has ";
-        for(size_t j=0; j<c.size(); j++){
-            if (j>0) {
-                cout << ", " ;
-            }
-            const DI & D = num_test[c[j]];
-            cout << "[" << D << "] ";
-            odata << num_test[c[j]] << " " << i << std::endl;
-        }
-        cout << endl;
-    }
-    ocenters.close();
-    odata.close();
-
-
-
-}
-*/
 std::vector<std::vector<se3>> dMeansSe3Fn(std::vector<se3> num_test){
 
     std::default_random_engine rge;
@@ -515,85 +393,9 @@ std::vector<std::vector<se3>> dMeansSe3Fn(std::vector<se3> num_test){
     return dataSe3;
 }
 
-/*
-void DmeansFn(std::vector<tf::Quaternion> num_test)
-{
-    std::default_random_engine rge;
-    unsigned long seedint = time(NULL);
-    // unsigned long seedint = 1612773364;
-    //std::cout << "Seed: " << seedint << std::endl;
-    rge.seed(seedint);
-
-    typedef DMeansT<DI,DataSetIterator,DataMetric,DataAggregator> DMeansQ;
-
-
-
-    const unsigned int Nseed = 5;
-    std::uniform_int_distribution<unsigned int> seedSel(0,Nseed-1);
-    DI seed[Nseed];
-
-    for (unsigned int k=0;k<Nseed;k++) {
-        seed[k] = QRand(rge);
-    }
-
-
-    //for (size_t k=0;k<100;k++) {
-    //int j = seedSel(rge);
-    // num_test.push_back(dQRand(0.3,rge)*seed[j]);
-    //}
-    cout << "Number of instances: " << num_test.size() << endl;
-
-    DMeansQ::CenterSet initial_centers;
-    std::uniform_int_distribution<unsigned int> dataSel(0,99);
-    initial_centers.push_back(num_test[dataSel(rge)]);
-    initial_centers.push_back(num_test[dataSel(rge)]);
-
-    //cout << "running d-means " << endl;
-
-    //minimum delta between points? not sure
-    DataMetric metric;
-    DataAggregator aggregator;
-    CenterSplitter splitter;
-    DMeansQ x(num_test.begin(),num_test.end(), metric, aggregator, 0.2);
-
-    x.process();
-
-    const ClusterSet & clusters = x.clusters() ;
-    unsigned int n_clusters = clusters.size();
-
-
-    std::ofstream ocenters ("center", std::ofstream::out);
-    std::ofstream odata ("data", std::ofstream::out);
-    cout << "D-MEANS found " << n_clusters << " clusters." << endl;
-    for(unsigned int i=0; i<n_clusters; i++){
-        const Membership & c = clusters[i];
-        ocenters << x.centers()[i] << " " << i << std::endl;
-        cout << "CLUSTER "<<i<<" centered on " << x.centers()[i] << " has ";
-        for(size_t j=0; j<c.size(); j++){
-            if (j>0) {
-                cout << ", " ;
-            }
-            const DI & D = num_test[c[j]];
-            cout << "[" << D << "] ";
-            odata << num_test[c[j]] << " " << i << std::endl;
-        }
-        cout << endl;
-    }
-    ocenters.close();
-    odata.close();
-
-
-
-}
-*/
-
-
 se3 se3Inverse(se3 data){
 
-
-
     tf::Matrix3x3 m0(data.q);
-
     Eigen::Matrix3d Rot;
     Eigen::Matrix4d T =Eigen::Matrix4d::Identity();
 
@@ -721,6 +523,7 @@ int main(int argc, char *argv[]){
     //defSe3.t(0.0,0.0,0.0);
     //defSe3.q(0,0,0,1);
     vector<vector<vector<se3>>> tfVecData(maxT+1, vector<vector<se3>>(maxKF+1, vector<se3>(maxT+1, defSe3)));
+    vector<vector<vector<double>>> temporalUncertainty(maxT+1, vector<vector<double>>(maxKF+1, vector<double>(maxT+1, 6)));
     vector<vector<double>> errorVec(maxT+1, vector<double>(maxKF+1,-1));
     for (int t0=0; t0<=maxT; t0++){
 
@@ -823,22 +626,7 @@ int main(int argc, char *argv[]){
                     localSe3Set.push_back(tf);
                     //  std::cout<<"4"<<std::endl;
 
-
                 }
-
-
-                /*     for (int Z=0; Z<localSet.size(); Z++)
-                {
-                    cout<<localSet[Z].x()<<","<<localSet[Z].y()<<","<<localSet[Z].z()<<","<<localSet[Z].w()<<endl;
-                }
-                */
-
-                /*    if (loopCount==18){
-                   cout<<"skipping run 18"<<endl;
-                   loopCount++;
-                   continue;
-               }
-            */
 
                 std::cout<<"this is run #"<<loopCount<<std::endl;
                 //XmeansFn(localSet);
@@ -866,10 +654,6 @@ int main(int argc, char *argv[]){
 
                     }
                 }
-
-
-
-
 
                 // std::vector<std::vector<se3>> dataOut=dMeansSe3Fn(localSe3Set);
 
@@ -929,26 +713,15 @@ int main(int argc, char *argv[]){
                                 errorTemp=errorTemp+cError;
                             }
 
-
-
                             double error=errorTemp/(dataOut[k].size()-1);
                             std::cout<<"cluster error is "<<error<<endl;
-
-
-
-
 
                             if (error<lowestError2){
                                 lowestError2=error;
                                 currentKk=k;
                             }
 
-
-
-
                         }
-
-
 
                     }
 
@@ -959,6 +732,7 @@ int main(int argc, char *argv[]){
                     loopCount++;
                     std::cout<<"-----------\n"<<std::endl;
                     tfVecData[t0][i][j]=dataOut[currentKk].back();
+                    temporalUncertainty[t0][i][j]=x;
 
                 }
 
@@ -998,6 +772,8 @@ int main(int argc, char *argv[]){
     //}
     std::vector<int> parentFrames;
     std::vector<std::vector<se3>> temporalTfs;
+    std::vector<std::vector<double>> temporalUncertaintyFiltered;
+
     for (unsigned int i=0; i<=maxKF;i++){
         double lowestError=99999999999;
         int selectedT=-1;
@@ -1013,21 +789,25 @@ int main(int argc, char *argv[]){
             }
         }
         std::vector<se3> temporalTfsTemp;
+        std::vector<double> temporalUncertaintyFilteredTemp;
         parentFrames.push_back(selectedT);
         cout<<"best time period for KF "<<i<<" is "<<selectedT<<endl;   //time period match for every KF
         for (unsigned int j=0; j<=maxT; j++){
             if (j==selectedT){
                 temporalTfsTemp.push_back(se3(tf::Vector3(0,0,0),tf::Quaternion::getIdentity()));
+                temporalUncertaintyFilteredTemp.push_back(0.1);
                 continue;
             }
             tf::Quaternion qSelected=tfVecData[selectedT][i][j].q;
             tf::Vector3 tSelected=tfVecData[selectedT][i][j].t;
             temporalTfsTemp.push_back(se3(tSelected, qSelected));
+            temporalUncertaintyFilteredTemp.push_back(temporalUncertainty[selectedT][i][j]);
             cout<<qSelected.x()<<" "<<qSelected.y()<<" "<<qSelected.z()<<" "<<qSelected.w()<<" "<<tSelected.x()<<" "<<tSelected.y()<<" "<<tSelected.z()<<endl;
         }
 
         temporalTfs.push_back(temporalTfsTemp);
 
+        temporalUncertaintyFiltered.push_back(temporalUncertaintyFilteredTemp);
 
 
 
@@ -1046,7 +826,7 @@ int main(int argc, char *argv[]){
 
 
     vector<se3> spatialVecData(maxKF+1, defSe3);
-    vector<double> uncertaintyCoeff(maxKF+1, 0);
+    vector<double> uncertaintyCoeff(maxKF+1, 30);
     for(unsigned int i=1; i<=maxKF; i++){
         unsigned int t0=parentFrames[i];
         cout<<"this is Spatial KF "<<i<<endl;
@@ -1312,8 +1092,6 @@ int main(int argc, char *argv[]){
             Eigen::Matrix3d rotT=T.block(0,0,3,3);
             Eigen::Quaterniond q(rotT);
 
-
-
             output<<i<<","<<j<<","<<T(0,3)<<","<<T(1,3)<<","<<T(2,3)<<","<<q.x()<<","<<q.y()<<","<<q.z()<<","<<q.w()<<","<<(j==t0)<<endl;
 
             se3 fPose;
@@ -1334,14 +1112,11 @@ int main(int argc, char *argv[]){
         olTransforms.push_back(olTransformsTemp);
 
     }
-
     output.close();
 
-
     /* ------------------------------------FACTOR GRAPH SETUP--------------------------------------------------- */
-
     bool closeLoop=true;
-
+    float closeLoopUncertainty=1;
     int sNode=0;
 
     if (closeLoop){sNode=1;}
@@ -1351,7 +1126,7 @@ int main(int argc, char *argv[]){
     for (int i=sNode; i<maxKF;i++){
         double uncertainty=uncertaintyCoeff[i+1]; //because links to previous frame, here linking to forward frame
         for (int j=0; j<maxT; j++){
-
+            double temporalUncertaintyDouble = temporalUncertaintyFiltered[i][j];
             unsigned int serialIdx0=returnIndex(i,j,maxKF,closeLoop);  //S(Q0,t0)     //each kf is represented by a node tied to the node to the right and the node below it.
             unsigned int serialIdx1=returnIndex(i+1,j,maxKF,closeLoop); //S(Q1,t0)
             unsigned int serialIdx2=returnIndex(i,j+1,maxKF,closeLoop); //(SQ0,t1)
@@ -1367,7 +1142,7 @@ int main(int argc, char *argv[]){
             L2=se3Mult(L2,TQ2);
 
             graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<uncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
-            graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w()<<","<<-1  <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+            graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w()<<","<<temporalUncertaintyDouble  <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
 
             if (i==maxKF-1){  //handle last KF cz it has only temporal constraints
 
@@ -1382,7 +1157,7 @@ int main(int argc, char *argv[]){
 
                 L2=se3Mult(L2,TQ2);
 
-                graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w()<<","<<-1<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+                graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w()<<","<<temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
 
                 if (closeLoop){    //handle spatial loop closure constraint
 
@@ -1391,7 +1166,6 @@ int main(int argc, char *argv[]){
 
                     Eigen::Matrix4d T1=parseData(1, 0, j, j, transforms);
 
-
                     Eigen::Matrix3d R1=T1.block(0,0,3,3);
 
                     Eigen::Quaterniond qd(R1);
@@ -1399,9 +1173,7 @@ int main(int argc, char *argv[]){
                     L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
                     L1.t=tf::Vector3(T1(0,3),T1(1,3),T1(2,3));
 
-                    graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<1 <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
-
-
+                    graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
 
                     if (j=maxT-1){   //bottom left node, loop closure constraint
 
@@ -1419,19 +1191,15 @@ int main(int argc, char *argv[]){
                         L1.t=tf::Vector3(T1(0,3),T1(1,3),T1(2,3));
 
 
-                        graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<< 1 <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
-
-
+                        graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<< closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
 
 
                     }
-
 
                 }
 
             }
         }
-
 
 
         unsigned int serialIdx0=returnIndex(i,maxT,maxKF,closeLoop);  //S(Q0,t0)
@@ -1451,7 +1219,6 @@ int main(int argc, char *argv[]){
 
 
     }
-
 
     graphInput.close();
     std::cout<<"max nodes is "<<maxNodes<<endl;
@@ -1491,16 +1258,9 @@ int main(int argc, char *argv[]){
 
             graphInitialEstimate<<nodeIdx<<","<<x<<","<<y<<","<<z<<","<<q.x()<<","<<q.y()<<","<<q.z()<<","<<q.w()<<std::endl;
 
-
-
-
-
         }
 
     }
     graphInitialEstimate.close();
     return 0;
 }
-
-
-
