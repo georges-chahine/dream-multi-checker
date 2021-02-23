@@ -1223,7 +1223,7 @@ int main(int argc, char *argv[]){
     graphInput.close();
     std::cout<<"max nodes is "<<maxNodes<<endl;
 
-    for (int i=0; i<=maxKF;i++){
+    for (int i=sNode; i<=maxKF;i++){
 
         for (int j=0; j<=maxT; j++){
 
