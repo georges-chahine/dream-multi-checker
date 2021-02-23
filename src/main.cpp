@@ -595,39 +595,78 @@ se3 se3Inverse(se3 data){
     tf::matrixTFToEigen(m0, Rot);
     T.block(0,0,3,3)=Rot;
 
-    T(0,3)=temporalTQ.t.x();
-    T(1,3)=temporalTQ.t.y();
-    T(2,3)=temporalTQ.t.z();
-    T=T.inverse();
+    T(0,3)=data.t.x();
+    T(1,3)=data.t.y();
+    T(2,3)=data.t.z();
+    T=T.inverse().eval();
 
     se3 out;
-
-    out.t.x()=T(0,3);
-    out.t.y()=T(1,3);
-    out.t.z()=T(2,3);
 
     Rot=T.block(0,0,3,3);
 
     Eigen::Quaterniond q (Rot);
 
-    out.q.x()=q.x();
-    out.q.y()=q.y();
-    out.q.z()=q.z();
-    out.q.w()=q.w();
-
+    out.q=tf::Quaternion(q.x(),q.y(),q.z(),q.w());
+    out.t=tf::Vector3(T(0,3),T(1,3),T(2,3));
 
 
     return out;
+}
 
+
+se3 se3Mult(se3 data1, se3 data2){
+
+
+
+    tf::Matrix3x3 m1(data1.q);
+
+    Eigen::Matrix3d Rot1;
+    Eigen::Matrix4d T1 =Eigen::Matrix4d::Identity();
+
+    tf::matrixTFToEigen(m1, Rot1);
+    T1.block(0,0,3,3)=Rot1;
+
+    T1(0,3)=data1.t.x();
+    T1(1,3)=data1.t.y();
+    T1(2,3)=data1.t.z();
+
+
+
+    tf::Matrix3x3 m2(data2.q);
+
+    Eigen::Matrix3d Rot2;
+    Eigen::Matrix4d T2 =Eigen::Matrix4d::Identity();
+
+    tf::matrixTFToEigen(m2, Rot2);
+    T2.block(0,0,3,3)=Rot2;
+
+    T2(0,3)=data2.t.x();
+    T2(1,3)=data2.t.y();
+    T2(2,3)=data2.t.z();
+
+    Eigen::Matrix4d T=T1*T2;
+
+
+    se3 out;
+
+
+    Rot1=T.block(0,0,3,3);
+
+    Eigen::Quaterniond q(Rot1);
+
+    out.q=tf::Quaternion(q.x(),q.y(),q.z(),q.w());
+    out.t=tf::Vector3(T(0,3),T(1,3),T(2,3));
+
+    return out;
 }
 
 int main(int argc, char *argv[]){
 
 
-    std::ofstream output, graphInput;
+    std::ofstream output, graphInput, graphInitialEstimate;
     output.open("ol_transforms.csv");
     graphInput.open("graph_input.csv");
-
+    graphInitialEstimate.open("graph_initial_estimate.csv");
     //---------------------------------------------------------
     std::ifstream infile("transforms.csv");
 
@@ -1269,8 +1308,9 @@ int main(int argc, char *argv[]){
             output<<i<<","<<j<<","<<T(0,3)<<","<<T(1,3)<<","<<T(2,3)<<","<<q.x()<<","<<q.y()<<","<<q.z()<<","<<q.w()<<","<<(j==t0)<<endl;
 
             se3 fPose;
-
-            fPose.q.x()=q.x();
+            fPose.q=tf::Quaternion(q.x(),q.y(),q.z(),q.w());
+            fPose.t=tf::Vector3(T(0,3),T(1,3),T(2,3));
+            /* fPose.q.x()=q.x();
             fPose.q.y()=q.y();
             fPose.q.z()=q.z();
             fPose.q.w()=q.w();
@@ -1278,7 +1318,7 @@ int main(int argc, char *argv[]){
             fPose.t.x()=T(0,3);
             fPose.t.y()=T(1,3);
             fPose.t.z()=T(2,3);
-
+*/
             olTransformsTemp.push_back(fPose);
 
         }
@@ -1288,42 +1328,168 @@ int main(int argc, char *argv[]){
 
     output.close();
 
-    return 0;
 
+    /* ------------------------------------FACTOR GRAPH SETUP--------------------------------------------------- */
+
+    bool closeLoop=true;
+
+    int sNode=0;
+
+    if (closeLoop){sNode=1;}
 
     int maxNodes=(maxKF+1)*(maxT+1);
 
-    for (int i=0; i<=maxKF;i++){
+    for (int i=sNode; i<maxKF;i++){
         for (int j=0; j<maxT; j++){
 
-            unsigned int serialIdx0=returnIndex(i,j,maxKF);  //S(Q0,t0)
+            unsigned int serialIdx0=returnIndex(i,j,maxKF);  //S(Q0,t0)     //each kf is represented by a node tied to the node to the right and the node below it.
             unsigned int serialIdx1=returnIndex(i+1,j,maxKF); //S(Q1,t0)
             unsigned int serialIdx2=returnIndex(i,j+1,maxKF); //(SQ0,t1)
 
+            se3 TQ0=olTransforms[i][j];
+            se3 TQ1=olTransforms[i+1][j];
+            se3 TQ2=olTransforms[i][j+1];
+
+            se3 L1=se3Inverse(TQ0);
+            se3 L2=se3Inverse(TQ0);
+
+            L1=se3Mult(L1,TQ1);
+            L2=se3Mult(L2,TQ2);
+
+            graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+            graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+
+            if (i==maxKF-1){  //handle last KF cz it has only temporal constraints
+
+
+                serialIdx0=returnIndex(maxKF,j,maxKF);  //S(Q0,t0)
+                serialIdx2=returnIndex(maxKF,j+1,maxKF); //(SQ0,t1)
+
+                TQ0=olTransforms[maxKF][j];
+                TQ2=olTransforms[maxKF][j+1];
+
+                L2=se3Inverse(TQ0);
+
+                L2=se3Mult(L2,TQ2);
+
+                graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+
+                if (closeLoop){    //handle spatial loop closure constraint
+
+                    serialIdx0=returnIndex(maxKF,j,maxKF);  //S(Q0,t0)
+                    serialIdx1=returnIndex(1,j,maxKF); //S(Q1,t0)
+
+                    Eigen::Matrix4d T1=parseData(1, 0, j, j, transforms);
+
+
+                    Eigen::Matrix3d R1=T1.block(0,0,3,3);
+
+                    Eigen::Quaterniond qd(R1);
+
+                    L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
+                    L1.t=tf::Vector3(T1(0,3),T1(1,3),T1(2,3));
+
+                    graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+
+
+
+                    if (j=maxT-1){   //bottom left node, loop closure constraint
+
+                        serialIdx0=returnIndex(maxKF,maxT,maxKF);  //S(Q0,t0)
+                        serialIdx1=returnIndex(1,maxT,maxKF); //S(Q1,t0)
+
+                        Eigen::Matrix4d T1=parseData(1, 0, maxT, maxT, transforms);
+
+
+
+                        Eigen::Matrix3d R1=T1.block(0,0,3,3);
+
+                        Eigen::Quaterniond qd(R1);
+                        L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
+                        L1.t=tf::Vector3(T1(0,3),T1(1,3),T1(2,3));
+
+
+                        graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
 
 
 
 
-            se3 temporalTQ0=temporalTfs[i][j];
-            se3 temporalTQ1=temporalTfs[i+1][j];
-            se3 temporalTQ2=temporalTfs[i][j+1];
-
-            se3 L1=se3Inverse(temporalTQ0)  *  temporalTQ1;
-            se3 L2=se3Inverse(temporalTQ0)*temporalTQ2;
+                    }
 
 
+                }
 
+            }
+        }
 
 
 
-            graphInput << serialIdx0, serialIdx1, L1.t.x(),         ;//from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+        unsigned int serialIdx0=returnIndex(i,maxT,maxKF);  //S(Q0,t0)
+        unsigned int serialIdx1=returnIndex(i+1,maxT,maxKF); //S(Q1,t0)
+
+
+        se3 TQ0=olTransforms[i][maxT];
+        se3 TQ1=olTransforms[i+1][maxT];
+
+
+        se3 L1=se3Inverse(TQ0);
+
+
+        L1=se3Mult(L1,TQ1);
+
+        graphInput << serialIdx0<<","<< serialIdx1<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w() <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+
+
+    }
+
+
+    graphInput.close();
+    std::cout<<"max nodes is "<<maxNodes<<endl;
+
+    for (int i=sNode; i<=maxKF;i++){
+        for (int j=0; j<=maxT; j++){
+
+
+
+            se3 T=olTransforms[i][j];
+            int nodeIdx=returnIndex(1,j,maxKF); //S(Q1,t0)
+            double x=T.t.x();
+            double y=T.t.y();
+            double z=T.t.z();
+            double qx=T.q.x();
+            double qy=T.q.y();
+            double qz=T.q.z();
+            double qw=T.q.w();
+
+            const double mean = 0.0;
+            const double stddev = 0.2;
+            std::default_random_engine generator;
+            std::normal_distribution<double> dist(mean, stddev);
+
+            x=x+dist(generator);
+            y=y+dist(generator);
+            z=z+dist(generator);
+            qx=qx+dist(generator);
+            qy=qy+dist(generator);
+            qz=qz+dist(generator);
+            qw=qw+dist(generator);
+
+            tf::Quaternion q(qx, qy, qz, qw);
+
+            q=q.normalize();
+
+            graphInitialEstimate<<nodeIdx<<","<<x<<","<<y<<","<<z<<","<<qx<<","<<qy<<","<<qz<<","<<qw<<std::endl;
+
+
+
 
 
         }
-    }
 
-    graphInput.close();
-}
+        }
+                                   graphInitialEstimate.close();
+            return 0;
+        }
 
 
 
