@@ -1124,13 +1124,13 @@ int main(int argc, char *argv[]){
             //   L2=se3Mult(L2,TQ2);
             if (serialIdx0!=serialIdx1 ){
 
-                se3 L1=se3Inverse(L1);
+                //  se3 L1=se3Inverse(L1);
                 graphInput << serialIdx1<<","<< serialIdx0<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
             }
 
             if (j==t0){
                 serialIdx2=returnIndex(i+1,t1,maxKF,closeLoop);
-                graphInput << serialIdx2<<","<< serialIdx0<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w()<<","<<uncertainty  <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+                graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w()<<","<<uncertainty  <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
             }
             if (i==maxKF-1 ){//handle spatial loop closure constraint
 
@@ -1140,7 +1140,7 @@ int main(int argc, char *argv[]){
                 serialIdx1=returnIndex(maxKF,t0,maxKF,closeLoop);
                 L1=temporalTfs[maxKF][j];
                 if (serialIdx0!=serialIdx1 ){
-                    se3 L1=se3Inverse(L1);
+                    //se3 L1=se3Inverse(L1);
                     graphInput << serialIdx1<<","<< serialIdx0<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
                 }
                 if(closeLoop){
@@ -1170,14 +1170,44 @@ int main(int argc, char *argv[]){
 
     graphInput.close();
     std::cout<<"max nodes is "<<maxNodes<<endl;
-
+    std::default_random_engine generator;
+    se3 prevT=olTransforms[sNode][0];
+    const double mean = 0.0;
     for (int i=sNode; i<=maxKF;i++){
 
         for (int j=0; j<=maxT; j++){
 
 
+            const double stddev = 0.2;
+            const double translationCoeff=50;
 
             se3 T=olTransforms[i][j];
+            Eigen::Quaterniond q0(T.q.w(),T.q.x(),T.q.y(),T.q.z());
+            Eigen::Matrix3d rot(q0);
+            Eigen::Matrix4d tMat=Eigen::Matrix4d::Identity();
+
+            tMat(0,3)=T.t.x();
+            tMat(1,3)=T.t.y();
+            tMat(2,3)=T.t.z();
+
+            if (i>sNode && tMat.isIdentity()){
+
+
+
+                T=olTransforms[i-1][j];
+                olTransforms[i][j]=T;
+
+
+
+
+            }
+
+            else{
+                prevT=T;
+
+            }
+
+
             int nodeIdx=returnIndex(i,j,maxKF,closeLoop); //S(Q1,t0)
             double x=T.t.x();
             double y=T.t.y();
@@ -1187,24 +1217,25 @@ int main(int argc, char *argv[]){
             double qz=T.q.z();
             double qw=T.q.w();
 
-            const double mean = 0.0;
-            const double stddev = 0.2;
-            std::default_random_engine generator;
-            std::normal_distribution<double> dist(mean, stddev);
 
-            x=x+dist(generator);
-            y=y+dist(generator);
-            z=z+dist(generator);
-            qx=qx+dist(generator);
-            qy=qy+dist(generator);
-            qz=qz+dist(generator);
-            qw=qw+dist(generator);
 
+
+            if (i!=sNode){
+                std::normal_distribution<double> dist(mean, stddev);
+
+                x=x+dist(generator)*translationCoeff;
+                y=y+dist(generator)*translationCoeff;
+                z=z+dist(generator)*10;
+                qx=qx+dist(generator);
+                qy=qy+dist(generator);
+                qz=qz+dist(generator);
+                qw=qw+dist(generator);
+            }
             tf::Quaternion q(qx, qy, qz, qw);
 
             q=q.normalize();
 
-            graphInitialEstimate<<nodeIdx<<","<<x<<","<<y<<","<<z<<","<<q.x()<<","<<q.y()<<","<<q.z()<<","<<q.w()<<std::endl;
+            graphInitialEstimate<<nodeIdx<<","<<x<<","<<y<<","<<z<<","<<q.x()<<","<<q.y()<<","<<q.z()<<","<<q.w()<<","<<i<<","<<j<<std::endl;
 
         }
 
