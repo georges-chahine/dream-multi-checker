@@ -470,7 +470,7 @@ se3 se3Mult(se3 data1, se3 data2){
 int main(int argc, char *argv[]){
 
     float closeLoopUncertainty=1;
-    bool closeLoop=true;
+    bool closeLoop=false;
     int sNode=0;
 
 
