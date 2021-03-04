@@ -208,8 +208,8 @@ unsigned int returnIndex(unsigned int i, unsigned int j, unsigned int maxKF, boo
     int idx= (maxKF+1) * j + i;
 
     if (closeLoop){
-
-        return (idx-1);
+        idx= (maxKF-1+1) * j + (i-1);
+        //    return (idx-1);
 
     }
 
@@ -469,6 +469,11 @@ se3 se3Mult(se3 data1, se3 data2){
 
 int main(int argc, char *argv[]){
 
+    float closeLoopUncertainty=1;
+    bool closeLoop=true;
+    int sNode=0;
+
+
 
     std::ofstream output, graphInput, graphInitialEstimate;
     output.open("ol_transforms.csv");
@@ -478,7 +483,7 @@ int main(int argc, char *argv[]){
     std::ifstream infile("transforms.csv");
 
     //double x, y, z, qx, qy, qz, qw;
-    std::string KF, timePeriod, xStr, yStr, zStr, qxStr, qyStr, qzStr, qwStr;
+    std::string KF;
     vector<vector<string>> transforms;
     while (infile >> KF)
     {
@@ -511,6 +516,7 @@ int main(int argc, char *argv[]){
     std::cout<<"maxT is "<<maxT<<std::endl;
 
 
+    if (closeLoop){sNode=1; }
 
     //------------------------TEMPORAL ALIGNMENT--------------------------------
 
@@ -522,12 +528,12 @@ int main(int argc, char *argv[]){
     //std::cout<<defSe3.q.x()<<" "<<defSe3.q.w()<<endl;
     //defSe3.t(0.0,0.0,0.0);
     //defSe3.q(0,0,0,1);
-    vector<vector<vector<se3>>> tfVecData(maxT+1, vector<vector<se3>>(maxKF+1, vector<se3>(maxT+1, defSe3)));
-    vector<vector<vector<double>>> temporalUncertainty(maxT+1, vector<vector<double>>(maxKF+1, vector<double>(maxT+1, 6)));
-    vector<vector<double>> errorVec(maxT+1, vector<double>(maxKF+1,-1));
+    vector<vector<vector<se3>>> tfVecData(maxT+1, vector<vector<se3>>(maxKF+1-sNode, vector<se3>(maxT+1, defSe3)));
+    vector<vector<vector<double>>> temporalUncertainty(maxT+1, vector<vector<double>>(maxKF+1-sNode, vector<double>(maxT+1, 6)));
+    vector<vector<double>> errorVec(maxT+1, vector<double>(maxKF+1-sNode,-1));
     for (int t0=0; t0<=maxT; t0++){
 
-        for(int i=0; i<=maxKF; i++){
+        for(int i=sNode; i<=maxKF; i++){
             cout<<"this is KF "<<i<<endl;
             double Accum0=0;
             // double lowestT0Error=9999999999;
@@ -731,8 +737,8 @@ int main(int argc, char *argv[]){
 
                     loopCount++;
                     std::cout<<"-----------\n"<<std::endl;
-                    tfVecData[t0][i][j]=dataOut[currentKk].back();
-                    temporalUncertainty[t0][i][j]=x;
+                    tfVecData[t0][i-sNode][j]=dataOut[currentKk].back();
+                    temporalUncertainty[t0][i-sNode][j]=x;
 
                 }
 
@@ -748,7 +754,7 @@ int main(int argc, char *argv[]){
             cout<<"Accum0 is "<<Accum0<<endl;
 
             lowestT0Error.push_back(Accum0);
-            errorVec[t0][i]=Accum0;
+            errorVec[t0][i-sNode]=Accum0;
             /*  if (Accum0<lowestT0Error)
             {
                 lowestT0Error=Accum0;
@@ -774,13 +780,13 @@ int main(int argc, char *argv[]){
     std::vector<std::vector<se3>> temporalTfs;
     std::vector<std::vector<double>> temporalUncertaintyFiltered;
 
-    for (unsigned int i=0; i<=maxKF;i++){
+    for (unsigned int i=sNode; i<=maxKF;i++){
         double lowestError=99999999999;
         int selectedT=-1;
         for (unsigned int j=0; j<=maxT; j++){
             //  cout<<"index is "<<(i)*(maxT+1)+j<<endl;
             // double cError=lowestT0Error[(i)*(maxT+1)+j];
-            double cError=errorVec[j][i];
+            double cError=errorVec[j][i-sNode];
             std::cout<<cError<<endl;
             if (cError<lowestError )
             {
@@ -798,10 +804,10 @@ int main(int argc, char *argv[]){
                 temporalUncertaintyFilteredTemp.push_back(0.1);
                 continue;
             }
-            tf::Quaternion qSelected=tfVecData[selectedT][i][j].q;
-            tf::Vector3 tSelected=tfVecData[selectedT][i][j].t;
+            tf::Quaternion qSelected=tfVecData[selectedT][i-sNode][j].q;
+            tf::Vector3 tSelected=tfVecData[selectedT][i-sNode][j].t;
             temporalTfsTemp.push_back(se3(tSelected, qSelected));
-            temporalUncertaintyFilteredTemp.push_back(temporalUncertainty[selectedT][i][j]);
+            temporalUncertaintyFilteredTemp.push_back(temporalUncertainty[selectedT][i-sNode][j]);
             cout<<qSelected.x()<<" "<<qSelected.y()<<" "<<qSelected.z()<<" "<<qSelected.w()<<" "<<tSelected.x()<<" "<<tSelected.y()<<" "<<tSelected.z()<<endl;
         }
 
@@ -815,10 +821,10 @@ int main(int argc, char *argv[]){
     DataMetric::trans_weight = 1.0/0.1;   // was 1/0.3 default 1/0.15
     DataMetric::rot_weight = 1.0/0.1;
 
-    vector<se3> spatialVecData(maxKF+1, defSe3);
-    vector<double> uncertaintyCoeff(maxKF+1, 30);
-    for(unsigned int i=1; i<=maxKF; i++){
-        unsigned int t0=parentFrames[i];
+    vector<se3> spatialVecData(maxKF+1-sNode, defSe3);
+    vector<double> uncertaintyCoeff(maxKF+1-sNode, 30);
+    for(unsigned int i=sNode+1; i<=maxKF; i++){
+        unsigned int t0=parentFrames[i-sNode];
         cout<<"this is Spatial KF "<<i<<endl;
         //double Accum0=0;
         // double lowestT0Error=9999999999;
@@ -838,8 +844,8 @@ int main(int argc, char *argv[]){
                 continue;
             }
 
-            se3 currentTf=temporalTfs[i][j];
-            se3 prevTf=temporalTfs[i-1][j];
+            se3 currentTf=temporalTfs[i-sNode][j];
+            se3 prevTf=temporalTfs[i-1-sNode][j];
             Eigen::Matrix4d prevT=Eigen::Matrix4d::Identity();
             Eigen::Matrix4d currentT=Eigen::Matrix4d::Identity();
             prevT(0,3)=prevTf.t.x();
@@ -862,7 +868,7 @@ int main(int argc, char *argv[]){
 
             //currenT.block(0,0,3,3)=
 
-            if (  (prevT.isIdentity(1e-1) && parentFrames[i-1]!=j  ) || (currentT.isIdentity(1e-1) && j!= t0) ) {
+            if (  (prevT.isIdentity(1e-1) && parentFrames[i-sNode-1]!=j  ) || (currentT.isIdentity(1e-1) && j!= t0) ) {
                 cout<<"ICP failed2"<<endl;
                 continue;
             }
@@ -997,8 +1003,8 @@ int main(int argc, char *argv[]){
                 }
 
             }
-            spatialVecData[i]=dataOut[currentKk].back();
-            uncertaintyCoeff[i]=x;
+            spatialVecData[i-sNode]=dataOut[currentKk].back();
+            uncertaintyCoeff[i-sNode]=x;
 
 
 
@@ -1024,11 +1030,11 @@ int main(int argc, char *argv[]){
     //spatialVecData[KF] has horizontal spatial alignment
     std::vector<std::vector<se3>> olTransforms; //open loop transforms
     Eigen::Matrix4d incrementalSpatialTf =Eigen::Matrix4d::Identity();
-    for (int i=0; i<=maxKF;i++){
-        unsigned int t0=parentFrames[i];
+    for (int i=sNode; i<=maxKF;i++){
+        unsigned int t0=parentFrames[i-sNode];
         std::vector<se3> olTransformsTemp;
         //   cout<<"KF is "<<i<<endl;
-        se3 spatialTQ=spatialVecData[i];
+        se3 spatialTQ=spatialVecData[i-sNode];
 
         tf::Matrix3x3 m(spatialTQ.q);
 
@@ -1053,7 +1059,7 @@ int main(int argc, char *argv[]){
         //   cout<<spatialTf<<endl;
         for (int j=0; j<=maxT; j++){
 
-            se3 temporalTQ=temporalTfs[i][j];
+            se3 temporalTQ=temporalTfs[i-sNode][j];
             tf::Matrix3x3 m0(temporalTQ.q);
 
             Eigen::Matrix3d temporalRot;
@@ -1076,7 +1082,7 @@ int main(int argc, char *argv[]){
             Eigen::Matrix3d rotT=T.block(0,0,3,3);
             Eigen::Quaterniond q(rotT);
 
-            output<<i<<","<<j<<","<<T(0,3)<<","<<T(1,3)<<","<<T(2,3)<<","<<q.x()<<","<<q.y()<<","<<q.z()<<","<<q.w()<<","<<(j==t0)<<endl;
+            output<<i-sNode<<","<<j<<","<<T(0,3)<<","<<T(1,3)<<","<<T(2,3)<<","<<q.x()<<","<<q.y()<<","<<q.z()<<","<<q.w()<<","<<(j==t0)<<endl;
 
             se3 fPose;
             fPose.q=tf::Quaternion(q.x(),q.y(),q.z(),q.w());
@@ -1091,30 +1097,26 @@ int main(int argc, char *argv[]){
     output.close();
 
     /* ------------------------------------FACTOR GRAPH SETUP--------------------------------------------------- */
-    bool closeLoop=false;
-    float closeLoopUncertainty=1;
-    int sNode=0;
 
-    if (closeLoop){sNode=1;}
 
-    int maxNodes=(maxKF+1)*(maxT+1);
-
+    int maxNodes=(maxKF+1-sNode)*(maxT+1);
+    graphInput<<std::fixed<<setprecision(20);
     for (int i=sNode; i<maxKF;i++){
-        se3 L2=spatialVecData[i+1];
+        se3 L2=spatialVecData[i+1-sNode];
 
-        unsigned int t0=parentFrames[i];
-        unsigned int t1=parentFrames[i+1];
-        double uncertainty=uncertaintyCoeff[i+1]; //because links to previous frame, here linking to forward frame
+        unsigned int t0=parentFrames[i-sNode];
+        unsigned int t1=parentFrames[i+1-sNode];
+        double uncertainty=uncertaintyCoeff[i+1-sNode]; //because links to previous frame, here linking to forward frame
         for (int j=0; j<=maxT; j++){
 
 
 
-            double temporalUncertaintyDouble = temporalUncertaintyFiltered[i][j];
+            double temporalUncertaintyDouble = temporalUncertaintyFiltered[i-sNode][j];
             unsigned int serialIdx0=returnIndex(i,j,maxKF,closeLoop);  //S(Q0,t0)     //each kf is represented by a node tied to the node to the right and the node below it.
             unsigned int serialIdx1=returnIndex(i,t0,maxKF,closeLoop); //S(Q1,t0)
             unsigned int serialIdx2; //(SQ0,t1)
 
-            se3 L1=temporalTfs[i][j];
+            se3 L1=temporalTfs[i-sNode][j];
 
 
             //se3 L1=se3Inverse(TQ0);
@@ -1134,18 +1136,18 @@ int main(int argc, char *argv[]){
             }
             if (i==maxKF-1 ){//handle spatial loop closure constraint
 
-                t0=parentFrames[maxKF];
-                temporalUncertaintyDouble = temporalUncertaintyFiltered[maxKF][j];
+                t0=parentFrames[maxKF-sNode];
+                temporalUncertaintyDouble = temporalUncertaintyFiltered[maxKF-sNode][j];
                 serialIdx0=returnIndex(maxKF,j,maxKF,closeLoop);
                 serialIdx1=returnIndex(maxKF,t0,maxKF,closeLoop);
-                L1=temporalTfs[maxKF][j];
+                L1=temporalTfs[maxKF-sNode][j];
                 if (serialIdx0!=serialIdx1 ){
                     //se3 L1=se3Inverse(L1);
                     graphInput << serialIdx1<<","<< serialIdx0<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
                 }
                 if(closeLoop){
                     serialIdx0=returnIndex(maxKF,j,maxKF,closeLoop);  //S(Q0,t0)
-                    serialIdx1=returnIndex(1,j,maxKF,closeLoop); //S(Q1,t0)
+                    serialIdx1=returnIndex(sNode,j,maxKF,closeLoop); //S(Q1,t0)
 
                     Eigen::Matrix4d T1=parseData(1, 0, j, j, transforms);
 
@@ -1169,6 +1171,7 @@ int main(int argc, char *argv[]){
     }
 
     graphInput.close();
+        graphInitialEstimate<<std::fixed<<setprecision(20);
     std::cout<<"max nodes is "<<maxNodes<<endl;
     std::default_random_engine generator;
     se3 prevT=olTransforms[sNode][0];
@@ -1181,7 +1184,7 @@ int main(int argc, char *argv[]){
             const double stddev = 0.2;
             const double translationCoeff=50;
 
-            se3 T=olTransforms[i][j];
+            se3 T=olTransforms[i-sNode][j];
             Eigen::Quaterniond q0(T.q.w(),T.q.x(),T.q.y(),T.q.z());
             Eigen::Matrix3d rot(q0);
             Eigen::Matrix4d tMat=Eigen::Matrix4d::Identity();
@@ -1194,8 +1197,8 @@ int main(int argc, char *argv[]){
 
 
 
-                T=olTransforms[i-1][j];
-                olTransforms[i][j]=T;
+                T=olTransforms[i-1-sNode][j];
+                olTransforms[i-sNode][j]=T;
 
 
 
