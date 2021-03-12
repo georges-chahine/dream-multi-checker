@@ -12,6 +12,7 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include "tf_conversions/tf_eigen.h"
+#include "yaml-cpp/yaml.h"
 using namespace std;
 using namespace Clustering;
 
@@ -465,7 +466,16 @@ se3 se3Mult(se3 data1, se3 data2){
 int main(int argc, char *argv[]){
 
     float closeLoopUncertainty=1;
+
+    YAML::Node config = YAML::LoadFile("../config.yaml");
+    std::string loopCloseStr = config["closeLoop"].as<std::string>();
+
     bool closeLoop=false;
+
+    if (loopCloseStr=="True" || loopCloseStr=="true")
+    {
+        closeLoop=true;
+    }
     int sNode=0;
 
 
