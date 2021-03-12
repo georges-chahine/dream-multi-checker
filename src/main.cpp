@@ -201,21 +201,16 @@ public:
 
 // > means newer
 unsigned int returnIndex(unsigned int i, unsigned int j, unsigned int maxKF, bool closeLoop){
-
-
     // maxKF starts at 0
-
     int idx= (maxKF+1) * j + i;
-
-    if (closeLoop){
+    closeLoop=false; //function changed, permanently disabled
+    if (closeLoop)
+    {
         idx= (maxKF-1+1) * j + (i-1);
         //    return (idx-1);
-
     }
 
     return (idx);
-
-
 }
 
 
@@ -516,7 +511,7 @@ int main(int argc, char *argv[]){
     std::cout<<"maxT is "<<maxT<<std::endl;
 
 
-    if (closeLoop){sNode=1; }
+    //if (closeLoop){sNode=1; }
 
     //------------------------TEMPORAL ALIGNMENT--------------------------------
 
@@ -1145,22 +1140,7 @@ int main(int argc, char *argv[]){
                     //se3 L1=se3Inverse(L1);
                     graphInput << serialIdx1<<","<< serialIdx0<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
                 }
-                if(closeLoop){
-                    serialIdx0=returnIndex(maxKF,j,maxKF,closeLoop);  //S(Q0,t0)
-                    serialIdx1=returnIndex(sNode,j,maxKF,closeLoop); //S(Q1,t0)
 
-                    Eigen::Matrix4d T1=parseData(1, 0, j, j, transforms);
-
-                    Eigen::Matrix3d R1=T1.block(0,0,3,3);
-
-                    Eigen::Quaterniond qd(R1);
-
-                    L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
-                    L1.t=tf::Vector3(T1(0,3),T1(1,3),T1(2,3));
-                    if (serialIdx0!=serialIdx1){
-                        graphInput << serialIdx1<<","<< serialIdx0<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
-                    }
-                }
 
             }
 
@@ -1170,8 +1150,60 @@ int main(int argc, char *argv[]){
 
     }
 
+    if(closeLoop){
+        for (int j=0; j<=maxT; j++){
+
+            unsigned int  serialIdx1=returnIndex(0,j,maxKF,closeLoop); //S(Q1,t0)
+            bool found=false;
+            Eigen::Matrix4d T1=parseData(0, -1, j, j, transforms);
+            unsigned int x;   //check which keyframes matches the special loop closure keyframe, usually the last keyframe.
+            for (unsigned int i=0; i<transforms.size();i++){
+
+                if (transforms[i][0]=="%KF"){
+                    int sKF=stoi(transforms[i+1][0],nullptr,0);
+                    int sT=stoi(transforms[i+1][1],nullptr,0);
+                    if (sKF==-1 && sT==j){
+                        int sKF2=stoi(transforms[i+2][0],nullptr,0);
+                        int sT2=stoi(transforms[i+2][1],nullptr,0);
+
+                        if (sKF2!=0 && sT2==j){
+                            found=true;
+                            x=sKF2;
+
+                        }
+
+                    }
+                }
+
+            }
+
+            if (!found){continue;}
+
+            std::cout<<"loop closure KF for time priod "<<j<<" is: "<<x<<std::endl;
+
+
+            Eigen::Matrix4d T2=parseData(-1, x, j, j, transforms);
+
+            unsigned int serialIdx2=returnIndex(x,j,maxKF,closeLoop);  //S(Q0,t0)
+
+
+            Eigen::Matrix4d T=T2*T1;
+
+
+            Eigen::Matrix3d R=T.block(0,0,3,3);
+
+            Eigen::Quaterniond qd(R);
+            se3 L1;
+            L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
+            L1.t=tf::Vector3(T(0,3),T(1,3),T(2,3));
+            if (serialIdx2!=serialIdx1){
+                graphInput << serialIdx1<<","<< serialIdx2<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+            }
+        }
+    }
+
     graphInput.close();
-        graphInitialEstimate<<std::fixed<<setprecision(20);
+    graphInitialEstimate<<std::fixed<<setprecision(20);
     std::cout<<"max nodes is "<<maxNodes<<endl;
     std::default_random_engine generator;
     se3 prevT=olTransforms[sNode][0];
@@ -1179,7 +1211,6 @@ int main(int argc, char *argv[]){
     for (int i=sNode; i<=maxKF;i++){
 
         for (int j=0; j<=maxT; j++){
-
 
             const double stddev = 0.2;
             const double translationCoeff=50;
@@ -1195,13 +1226,8 @@ int main(int argc, char *argv[]){
 
             if (i>sNode && tMat.isIdentity()){
 
-
-
                 T=olTransforms[i-1-sNode][j];
                 olTransforms[i-sNode][j]=T;
-
-
-
 
             }
 
@@ -1209,7 +1235,6 @@ int main(int argc, char *argv[]){
                 prevT=T;
 
             }
-
 
             int nodeIdx=returnIndex(i,j,maxKF,closeLoop); //S(Q1,t0)
             double x=T.t.x();
@@ -1219,9 +1244,6 @@ int main(int argc, char *argv[]){
             double qy=T.q.y();
             double qz=T.q.z();
             double qw=T.q.w();
-
-
-
 
             if (i!=sNode){
                 std::normal_distribution<double> dist(mean, stddev);
