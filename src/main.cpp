@@ -555,7 +555,7 @@ int main(int argc, char *argv[]){
                 se3 tf;
                 tf.q=quat; tf.t=t;
                 if (!T.isIdentity() ) {
-                    // cout<<"first T is "<<T<<endl;
+                   //  cout<<"first T is "<<T<<endl;
                     localSet.push_back(quat);
                     localSe3Set.push_back(tf);
 
