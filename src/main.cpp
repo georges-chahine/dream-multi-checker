@@ -241,6 +241,7 @@ Eigen::Matrix4d parseData(int srcKF, int dstKF, int srcT, int dstT, vector<vecto
         if (transforms[i][0]=="%KF"){
             int sKF=stoi(transforms[i+1][0],nullptr,0);
             int sT=stoi(transforms[i+1][1],nullptr,0);
+                      std::cout<<"sKF is "<<sKF<<"dstKF  is "<<dstKF<<std::endl;
             if ((sKF==dstKF) && (sT==dstT)){
 
                 unsigned int j=2;
