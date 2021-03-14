@@ -1262,7 +1262,7 @@ int main(int argc, char *argv[]){
         float p=0.1;
         while(true){
 
-            dataOut=d<zMeansSe3Fn(localSe3SetLoopClosure);
+            dataOut=dMeansSe3Fn(localSe3SetLoopClosure);
 
             if(localSe3SetLoopClosure.size()>dataOut.size() || p>1 )
             {
