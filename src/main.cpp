@@ -1240,6 +1240,8 @@ int main(int argc, char *argv[]){
 
             Eigen::Matrix4d T = T1 * T2 ;
 
+            //T= T;
+
 
             T=  T111*T*T222.inverse();
 
