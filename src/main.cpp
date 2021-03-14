@@ -1240,10 +1240,8 @@ int main(int argc, char *argv[]){
 
             Eigen::Matrix4d T = T1 * T2 ;
 
-            //T= T;
 
-
-            z T=  T111*T*T222.inverse();
+            T=  T111*T*T222.inverse();
 
             Eigen::Matrix3d R=T.block(0,0,3,3);
             Eigen::Quaterniond qd(R);
