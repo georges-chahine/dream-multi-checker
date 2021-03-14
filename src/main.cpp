@@ -1264,7 +1264,7 @@ int main(int argc, char *argv[]){
 
             dataOut=dMeansSe3Fn(localSe3SetLoopClosure);
 
-            if(localSe3SetLoopClosure.size()>dataOut.size() || p>1 )
+            if(localSe3SetLoopClosure.size()>dataOut.size() || p>2 )
             {
                 break;
             }
