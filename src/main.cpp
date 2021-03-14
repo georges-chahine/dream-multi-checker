@@ -1235,6 +1235,8 @@ int main(int argc, char *argv[]){
             Eigen::Matrix4d T1=parseData(-1, 0, j, j, transforms);
             Eigen::Matrix4d T2=parseData(x, -1, j, j, transforms);
 
+            unsigned int serialIdx1=returnIndex(0,j,maxKF,closeLoop); //S(Q1,t0)
+            unsigned int serialIdx2=returnIndex(x,j,maxKF,closeLoop);  //S(Q0,t0)
 
             cout<<"T1 is \n"<<T1<<"\n T2 is \n"<<T2<<endl;
 
@@ -1243,7 +1245,7 @@ int main(int argc, char *argv[]){
             //T= T;
 
 
-           // T=  T111*T*T222.inverse();
+            // T=  T111*T*T222.inverse();
 
             Eigen::Matrix3d R=T.block(0,0,3,3);
             Eigen::Quaterniond qd(R);
@@ -1253,7 +1255,18 @@ int main(int argc, char *argv[]){
             L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
             L1.t=tf::Vector3(T(0,3),T(1,3),T(2,3));
             localSe3SetLoopClosure.push_back(L1);
+
+
+
+            if (serialIdx2!=serialIdx1){
+
+                graphInput << serialIdx1<<","<< serialIdx2<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+            }
+
         }
+
+
+        /*
 
         float p=0.1;
         while(true){
@@ -1299,6 +1312,8 @@ int main(int argc, char *argv[]){
             }
 
         }
+
+        */
 
     }
 
