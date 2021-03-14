@@ -1179,6 +1179,7 @@ int main(int argc, char *argv[]){
     if(closeLoop){
         std::vector<std::vector<se3>> dataOut;
         DataSetSe3 localSe3SetLoopClosure;
+        unsigned int communX=0;
         for (int j=0; j<=maxT; j++){
 
 
@@ -1197,6 +1198,7 @@ int main(int argc, char *argv[]){
                         if (sKF2!=0 && sT2==j){
                             found=true;
                             x=sKF2;
+                            communX=x;   //for now assume all x is the same for all time periods
 
                         }
 
@@ -1233,11 +1235,8 @@ int main(int argc, char *argv[]){
             Eigen::Matrix4d T1=parseData(-1, 0, j, j, transforms);
             Eigen::Matrix4d T2=parseData(x, -1, j, j, transforms);
 
-            unsigned int serialIdx1=returnIndex(0,j,maxKF,closeLoop); //S(Q1,t0)
-            unsigned int serialIdx2=returnIndex(x,j,maxKF,closeLoop);  //S(Q0,t0)
 
-            int parentFrame0=parentFrames[0];
-            int parentFrameX=parentFrames[x];
+
 
             Eigen::Matrix4d T = T1 * T2 ;
 
@@ -1254,9 +1253,7 @@ int main(int argc, char *argv[]){
             localSe3SetLoopClosure.push_back(L1);
             L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
             L1.t=tf::Vector3(T(0,3),T(1,3),T(2,3));
-            if (serialIdx2!=serialIdx1){
-                graphInput << serialIdx1<<","<< serialIdx2<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
-            }
+
         }
 
 
@@ -1281,6 +1278,34 @@ int main(int argc, char *argv[]){
         }
 
         cout<<"metric is "<<p<<endl;
+
+
+
+
+        int parentFrame0=parentFrames[0];
+        int parentFrameX=parentFrames[communX];
+        unsigned int serialIdx1=returnIndex(0,parentFrame0,maxKF,closeLoop); //S(Q1,t0)
+        unsigned int serialIdx2=returnIndex(communX,parentFrameX,maxKF,closeLoop);  //S(Q0,t0)
+
+        for (int k=0; k<dataOut.size();k++)
+        {
+            int cClusterSize=dataOut[k].size();
+
+            if (cClusterSize>1){
+                tf::Quaternion q=dataOut[k].back().q;
+                tf::Vector3 t=dataOut[k].back().t;
+
+               // T= T111*T*T222.inverse();
+
+
+                if (serialIdx2!=serialIdx1){
+                    graphInput << serialIdx1<<","<< serialIdx2<<","<< t.x()<<","<< t.y()<<","<<t.z()<<","<<q.x()<<","<< q.y()<<","<<q.z()<<","<< q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+                }
+                break;
+            }
+
+        }
+
 
 
 
