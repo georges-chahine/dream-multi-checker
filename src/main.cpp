@@ -1236,7 +1236,7 @@ int main(int argc, char *argv[]){
             Eigen::Matrix4d T2=parseData(x, -1, j, j, transforms);
 
 
-
+            cout<<"T1 is"<<T1<<" T2 is "<<T2<<endl;
 
             Eigen::Matrix4d T = T1 * T2 ;
 
