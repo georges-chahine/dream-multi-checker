@@ -481,7 +481,7 @@ se3 se3Mult(se3 data1, se3 data2){
 
 int main(int argc, char *argv[]){
 
-    float closeLoopUncertainty=0.1;
+    float closeLoopUncertainty=0.5;
 
     YAML::Node config = YAML::LoadFile("../config.yaml");
     std::string loopCloseStr = config["closeLoop"].as<std::string>();
@@ -1243,7 +1243,7 @@ int main(int argc, char *argv[]){
             Eigen::Matrix4d T=T1*T2;
 
 
-            T=  T111.inverse()*T*T222;
+            T= T;
 
 
             //T=T000*T*T.inverse();
