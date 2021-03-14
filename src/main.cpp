@@ -1250,9 +1250,10 @@ int main(int argc, char *argv[]){
             Eigen::Quaterniond qd(R);
 
             se3 L1;
-            localSe3SetLoopClosure.push_back(L1);
+
             L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
             L1.t=tf::Vector3(T(0,3),T(1,3),T(2,3));
+             localSe3SetLoopClosure.push_back(L1);
 
         }
 
