@@ -1177,6 +1177,7 @@ int main(int argc, char *argv[]){
     }
 
     if(closeLoop){
+        std::vector<std::vector<se3>> dataOut;
         DataSetSe3 localSe3SetLoopClosure;
         for (int j=0; j<=maxT; j++){
 
@@ -1235,8 +1236,8 @@ int main(int argc, char *argv[]){
             unsigned int serialIdx1=returnIndex(0,j,maxKF,closeLoop); //S(Q1,t0)
             unsigned int serialIdx2=returnIndex(x,j,maxKF,closeLoop);  //S(Q0,t0)
 
-            parentFrame0=parentFrames(0);
-            parentFrameX=parentFrames(x);
+            int parentFrame0=parentFrames[0];
+            int parentFrameX=parentFrames[x];
 
             Eigen::Matrix4d T = T1 * T2 ;
 
@@ -1265,7 +1266,7 @@ int main(int argc, char *argv[]){
 
             dataOut=dMeansSe3Fn(localSe3SetLoopClosure);
 
-            if(localSe3Set.size()>dataOut.size() || p>1 )
+            if(localSe3SetLoopClosure.size()>dataOut.size() || p>1 )
             {
                 break;
             }
