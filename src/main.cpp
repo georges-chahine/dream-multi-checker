@@ -1234,7 +1234,7 @@ int main(int argc, char *argv[]){
 
 
 
-            T=T111.inverse()*T*T000;
+            T=T111.inverse()*T;
 
             Eigen::Matrix3d R=T.block(0,0,3,3);
 
