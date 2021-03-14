@@ -255,7 +255,7 @@ Eigen::Matrix4d parseData(int srcKF, int dstKF, int srcT, int dstT, vector<vecto
         if (transforms[i][0]=="%KF"){
             int sKF=stoi(transforms[i+1][0],nullptr,0);
             int sT=stoi(transforms[i+1][1],nullptr,0);
-                //      std::cout<<"sKF is "<<sKF<<"dstKF  is "<<dstKF<<std::endl;
+            //      std::cout<<"sKF is "<<sKF<<"dstKF  is "<<dstKF<<std::endl;
             if ((sKF==dstKF) && (sT==dstT)){
 
                 unsigned int j=2;
@@ -264,7 +264,7 @@ Eigen::Matrix4d parseData(int srcKF, int dstKF, int srcT, int dstT, vector<vecto
 
                     int cKF=stoi(transforms[i+j][0],nullptr,0);
                     int cT=stoi(transforms[i+j][1],nullptr,0);
-                 //    std::cout<<"cT is "<<cT<<" dstT is "<<dstT<<std::endl;
+                    //    std::cout<<"cT is "<<cT<<" dstT is "<<dstT<<std::endl;
 
 
                     if ((cKF==srcKF) && (cT==srcT)){
@@ -581,7 +581,7 @@ int main(int argc, char *argv[]){
                 se3 tf;
                 tf.q=quat; tf.t=t;
                 if (!T.isIdentity() ) {
-                   //  cout<<"first T is "<<T<<endl;
+                    //  cout<<"first T is "<<T<<endl;
                     localSet.push_back(quat);
                     localSe3Set.push_back(tf);
 
@@ -1177,6 +1177,7 @@ int main(int argc, char *argv[]){
     }
 
     if(closeLoop){
+        DataSetSe3 localSe3SetLoopClosure;
         for (int j=0; j<=maxT; j++){
 
 
@@ -1216,9 +1217,6 @@ int main(int argc, char *argv[]){
             T111(1,3)=T11.t.y();
             T111(2,3)=T11.t.z();
 
-
-
-
             //se3 T22=olTransforms[x][j];
             se3 T22=temporalTfs[x][j];
             Eigen::Matrix4d T222=Eigen::Matrix4d::Identity();
@@ -1229,35 +1227,65 @@ int main(int argc, char *argv[]){
             T222(1,3)=T22.t.y();
             T222(2,3)=T22.t.z();
 
-
             std::cout<<"loop closure KF for time priod "<<j<<" is: "<<x<<std::endl;
-
 
             Eigen::Matrix4d T1=parseData(-1, 0, j, j, transforms);
             Eigen::Matrix4d T2=parseData(x, -1, j, j, transforms);
 
-
             unsigned int serialIdx1=returnIndex(0,j,maxKF,closeLoop); //S(Q1,t0)
             unsigned int serialIdx2=returnIndex(x,j,maxKF,closeLoop);  //S(Q0,t0)
 
-            Eigen::Matrix4d T=T1*T2;
+            parentFrame0=parentFrames(0);
+            parentFrameX=parentFrames(x);
+
+            Eigen::Matrix4d T = T1 * T2 ;
+
+            T= T111*T*T222.inverse();
 
 
-       //     T=  T111.inverse()*T*T222;
-
-
+            //     T=  T111.inverse()*T*T222;
             //T=T000*T*T.inverse();
 
             Eigen::Matrix3d R=T.block(0,0,3,3);
-
             Eigen::Quaterniond qd(R);
+
             se3 L1;
+            localSe3SetLoopClosure.push_back(L1);
             L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
             L1.t=tf::Vector3(T(0,3),T(1,3),T(2,3));
             if (serialIdx2!=serialIdx1){
                 graphInput << serialIdx1<<","<< serialIdx2<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
             }
         }
+
+
+
+        float p=0.1;
+        while(true){
+
+            dataOut=dMeansSe3Fn(localSe3SetLoopClosure);
+
+            if(localSe3Set.size()>dataOut.size() || p>1 )
+            {
+                break;
+            }
+            else
+            {
+                p=p+0.1;
+                DataMetric::trans_weight = 1.0/p;
+                DataMetric::rot_weight = 1.0/p;
+
+
+            }
+        }
+
+        cout<<"metric is "<<p<<endl;
+
+
+
+
+
+
     }
 
     graphInput.close();
