@@ -1299,6 +1299,8 @@ int main(int argc, char *argv[]){
 
 
                 if (serialIdx2!=serialIdx1){
+                    std::cout<<"Serial Idx1 is "<<serialIdx1<<std::endl;
+                    std::cout<<"Serial Idx2 is "<<serialIdx2<<std::endl;
                     graphInput << serialIdx1<<","<< serialIdx2<<","<< t.x()<<","<< t.y()<<","<<t.z()<<","<<q.x()<<","<< q.y()<<","<<q.z()<<","<< q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
                 }
                 break;
