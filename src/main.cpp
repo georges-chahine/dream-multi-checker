@@ -1243,7 +1243,7 @@ int main(int argc, char *argv[]){
             //T= T;
 
 
-            T=  T111*T*T222.inverse();
+           // T=  T111*T*T222.inverse();
 
             Eigen::Matrix3d R=T.block(0,0,3,3);
             Eigen::Quaterniond qd(R);
@@ -1252,11 +1252,8 @@ int main(int argc, char *argv[]){
 
             L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
             L1.t=tf::Vector3(T(0,3),T(1,3),T(2,3));
-             localSe3SetLoopClosure.push_back(L1);
-
+            localSe3SetLoopClosure.push_back(L1);
         }
-
-
 
         float p=0.1;
         while(true){
@@ -1273,15 +1270,10 @@ int main(int argc, char *argv[]){
                 DataMetric::trans_weight = 1.0/p;
                 DataMetric::rot_weight = 1.0/0.2;
 
-
             }
         }
 
         cout<<"metric is "<<p<<endl;
-
-
-
-
         int parentFrame0=parentFrames[0];
         int parentFrameX=parentFrames[communX];
         unsigned int serialIdx1=returnIndex(0,parentFrame0,maxKF,closeLoop); //S(Q1,t0)
@@ -1307,12 +1299,6 @@ int main(int argc, char *argv[]){
             }
 
         }
-
-
-
-
-
-
 
     }
 
