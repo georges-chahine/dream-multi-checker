@@ -1236,15 +1236,14 @@ int main(int argc, char *argv[]){
             Eigen::Matrix4d T2=parseData(x, -1, j, j, transforms);
 
 
-            cout<<"T1 is"<<T1<<" T2 is "<<T2<<endl;
+            cout<<"T1 is \n"<<T1<<"\n T2 is \n"<<T2<<endl;
 
             Eigen::Matrix4d T = T1 * T2 ;
 
             //T= T;
 
 
-            //     T=  T111.inverse()*T*T222;
-            //T=T000*T*T.inverse();
+            z T=  T111*T*T222.inverse();
 
             Eigen::Matrix3d R=T.block(0,0,3,3);
             Eigen::Quaterniond qd(R);
