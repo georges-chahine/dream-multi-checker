@@ -1179,7 +1179,7 @@ int main(int argc, char *argv[]){
     if(closeLoop){
         for (int j=0; j<=maxT; j++){
 
-            unsigned int  serialIdx1=returnIndex(0,j,maxKF,closeLoop); //S(Q1,t0)
+
             bool found=false;
 
             unsigned int x;   //check which keyframes matches the special loop closure keyframe, usually the last keyframe.
@@ -1206,12 +1206,14 @@ int main(int argc, char *argv[]){
             if (!found){continue;}
 
             std::cout<<"loop closure KF for time priod "<<j<<" is: "<<x<<std::endl;
-            Eigen::Matrix4d T1=parseData(0, -1, j, j, transforms);
-            Eigen::Matrix4d T2=parseData(-1, x, j, j, transforms);
 
+            Eigen::Matrix4d T1=parseData(x, -1, j, j, transforms);
+            Eigen::Matrix4d T2=parseData(-1, 0, j, j, transforms);
+
+            unsigned int  serialIdx1=returnIndex(0,j,maxKF,closeLoop); //S(Q1,t0)
             unsigned int serialIdx2=returnIndex(x,j,maxKF,closeLoop);  //S(Q0,t0)
 
-            Eigen::Matrix4d T=T1*T2;
+            Eigen::Matrix4d T=T2*T1;
 
             se3 T11=olTransforms[0][j];
             Eigen::Matrix4d T111=Eigen::Matrix4d::Identity();
