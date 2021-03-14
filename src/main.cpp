@@ -1264,7 +1264,7 @@ int main(int argc, char *argv[]){
 
             dataOut=dMeansSe3Fn(localSe3SetLoopClosure);
 
-            if(localSe3SetLoopClosure.size()>dataOut.size() || p>2 )
+            if(localSe3SetLoopClosure.size()>dataOut.size() || p>5 )
             {
                 break;
             }
@@ -1272,7 +1272,7 @@ int main(int argc, char *argv[]){
             {
                 p=p+0.1;
                 DataMetric::trans_weight = 1.0/p;
-                DataMetric::rot_weight = 1.0/p;
+                DataMetric::rot_weight = 1.0/0.2;
 
 
             }
@@ -1292,7 +1292,7 @@ int main(int argc, char *argv[]){
         {
             int cClusterSize=dataOut[k].size();
 
-            if (cClusterSize>1){
+            if (cClusterSize>2){
                 tf::Quaternion q=dataOut[k].back().q;
                 tf::Vector3 t=dataOut[k].back().t;
 
