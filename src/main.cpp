@@ -481,7 +481,7 @@ se3 se3Mult(se3 data1, se3 data2){
 
 int main(int argc, char *argv[]){
 
-    float closeLoopUncertainty=1;
+    float closeLoopUncertainty=0.1;
 
     YAML::Node config = YAML::LoadFile("../config.yaml");
     std::string loopCloseStr = config["closeLoop"].as<std::string>();
