@@ -234,6 +234,20 @@ Eigen::Matrix4d parseData(int srcKF, int dstKF, int srcT, int dstT, vector<vecto
 
     }
 
+
+    if (dstT==srcT && dstKF>srcKF){
+        int tempKF, tempT;
+        tempKF=srcKF;
+        tempT=srcT;
+        srcKF=dstKF;
+        srcT=dstT;
+        dstKF=tempKF;
+        dstT=tempT;
+        invFlag=true;
+        // std::cout<<"inverted"<<std::endl;
+
+    }
+
     Eigen::Matrix4d transform=Eigen::Matrix4d::Identity();
 
     for (unsigned int i=0; i<transforms.size();i++){
@@ -1193,14 +1207,11 @@ int main(int argc, char *argv[]){
 
             std::cout<<"loop closure KF for time priod "<<j<<" is: "<<x<<std::endl;
 
-
             Eigen::Matrix4d T2=parseData(-1, x, j, j, transforms);
 
             unsigned int serialIdx2=returnIndex(x,j,maxKF,closeLoop);  //S(Q0,t0)
 
-
             Eigen::Matrix4d T=T2*T1;
-
 
             Eigen::Matrix3d R=T.block(0,0,3,3);
 
