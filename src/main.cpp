@@ -1223,7 +1223,7 @@ int main(int argc, char *argv[]){
             T111(2,3)=T11.t.z();
 
 
-            se3 T00=olTransforms[0][j];
+            se3 T00=olTransforms[x][j];
             Eigen::Matrix4d T000=Eigen::Matrix4d::Identity();
             Eigen::Quaterniond q00(T00.q.w(),T00.q.x(),T00.q.y(),T00.q.z() );
             Eigen::Matrix3d r00(q00);
