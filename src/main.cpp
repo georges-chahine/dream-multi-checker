@@ -1206,7 +1206,8 @@ int main(int argc, char *argv[]){
             if (!found){continue;}
 
 
-            se3 T11=olTransforms[0][j];
+            //se3 T11=olTransforms[0][j];
+            se3 T11=temporalTfs[0][j];
             Eigen::Matrix4d T111=Eigen::Matrix4d::Identity();
             Eigen::Quaterniond q11(T11.q.w(),T11.q.x(),T11.q.y(),T11.q.z() );
             Eigen::Matrix3d r11(q11);
@@ -1218,7 +1219,8 @@ int main(int argc, char *argv[]){
 
 
 
-            se3 T22=olTransforms[x][j];
+            //se3 T22=olTransforms[x][j];
+            se3 T22=temporalTfs[x][j];
             Eigen::Matrix4d T222=Eigen::Matrix4d::Identity();
             Eigen::Quaterniond q22(T22.q.w(),T22.q.x(),T22.q.y(),T22.q.z() );
             Eigen::Matrix3d r22(q22);
