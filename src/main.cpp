@@ -1205,15 +1205,6 @@ int main(int argc, char *argv[]){
 
             if (!found){continue;}
 
-            std::cout<<"loop closure KF for time priod "<<j<<" is: "<<x<<std::endl;
-
-            Eigen::Matrix4d T1=parseData(x, -1, j, j, transforms);
-            Eigen::Matrix4d T2=parseData(-1, 0, j, j, transforms);
-
-            unsigned int  serialIdx1=returnIndex(0,j,maxKF,closeLoop); //S(Q1,t0)
-            unsigned int serialIdx2=returnIndex(x,j,maxKF,closeLoop);  //S(Q0,t0)
-
-            Eigen::Matrix4d T=T2*T1;
 
             se3 T11=olTransforms[0][j];
             Eigen::Matrix4d T111=Eigen::Matrix4d::Identity();
@@ -1225,15 +1216,32 @@ int main(int argc, char *argv[]){
             T111(2,3)=T11.t.z();
 
 
-            se3 T00=olTransforms[x][j];
-            Eigen::Matrix4d T000=Eigen::Matrix4d::Identity();
-            Eigen::Quaterniond q00(T00.q.w(),T00.q.x(),T00.q.y(),T00.q.z() );
-            Eigen::Matrix3d r00(q00);
-            T000.block(0,0,3,3)=r00;
-            T000(0,3)=T00.t.x();
-            T000(1,3)=T00.t.y();
-            T000(2,3)=T00.t.z();
 
+
+            se3 T22=olTransforms[x][j];
+            Eigen::Matrix4d T222=Eigen::Matrix4d::Identity();
+            Eigen::Quaterniond q22(T22.q.w(),T22.q.x(),T22.q.y(),T22.q.z() );
+            Eigen::Matrix3d r22(q22);
+            T222.block(0,0,3,3)=r22;
+            T222(0,3)=T22.t.x();
+            T222(1,3)=T22.t.y();
+            T222(2,3)=T22.t.z();
+
+
+            std::cout<<"loop closure KF for time priod "<<j<<" is: "<<x<<std::endl;
+
+
+            Eigen::Matrix4d T1=parseData(-1, 0, j, j, transforms);
+            Eigen::Matrix4d T2=parseData(x, -1, j, j, transforms);
+
+
+            unsigned int serialIdx1=returnIndex(0,j,maxKF,closeLoop); //S(Q1,t0)
+            unsigned int serialIdx2=returnIndex(x,j,maxKF,closeLoop);  //S(Q0,t0)
+
+            Eigen::Matrix4d T=T1*T2;
+
+
+            T=  T111*T*T222.inverse()
 
 
             //T=T000*T*T.inverse();
