@@ -1213,6 +1213,29 @@ int main(int argc, char *argv[]){
 
             Eigen::Matrix4d T=T2*T1;
 
+            se3 T11=olTransforms[0][j];
+            Eigen::Matrix4d T111=Eigen::Matrix4d::Identity();
+            Eigen::Quaterniond q11(T11.q.w(),T11.q.x(),T11.q.y(),T11.q.z() );
+            Eigen::Matrix3d r11(q11);
+            T111.block(0,0,3,3)=r11;
+            T111(0,3)=T11.t.x();
+            T111(1,3)=T11.t.y();
+            T111(2,3)=T11.t.z();
+
+
+            se3 T00=olTransforms[0][j];
+            Eigen::Matrix4d T000=Eigen::Matrix4d::Identity();
+            Eigen::Quaterniond q00(T00.q.w(),T00.q.x(),T00.q.y(),T00.q.z() );
+            Eigen::Matrix3d r00(q00);
+            T000.block(0,0,3,3)=r00;
+            T000(0,3)=T00.t.x();
+            T000(1,3)=T00.t.y();
+            T000(2,3)=T00.t.z();
+
+
+
+            T=T000*T*T111.inverse();
+
             Eigen::Matrix3d R=T.block(0,0,3,3);
 
             Eigen::Quaterniond qd(R);
