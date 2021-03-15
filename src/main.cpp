@@ -1240,12 +1240,10 @@ int main(int argc, char *argv[]){
 
             cout<<"T1 is \n"<<T1<<"\n T2 is \n"<<T2<<endl;
 
-            Eigen::Matrix4d T = T1 * T2 ;
+            Eigen::Matrix4d T = T1 * T2;
 
             //T= T;
-
-
-            // T=  T111*T*T222.inverse();
+             T=  T111*T*T222.inverse();
 
             Eigen::Matrix3d R=T.block(0,0,3,3);
             Eigen::Quaterniond qd(R);
@@ -1254,6 +1252,7 @@ int main(int argc, char *argv[]){
 
             L1.q=tf::Quaternion(qd.x(),qd.y(),qd.z(),qd.w());
             L1.t=tf::Vector3(T(0,3),T(1,3),T(2,3));
+
             localSe3SetLoopClosure.push_back(L1);
 
 
