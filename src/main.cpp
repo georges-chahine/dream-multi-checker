@@ -1127,7 +1127,7 @@ int main(int argc, char *argv[]){
 
         unsigned int t0=parentFrames[i-sNode];
         unsigned int t1=parentFrames[i+1-sNode];
-        double uncertainty=uncertaintyCoeff[i+1-sNode]; //because links to previous frame, here linking to forward frame
+        double uncertainty=uncertaintyCoeff[i+1-sNode]*1; //because links to previous frame, here linking to forward frame ~0~10 m
         for (int j=0; j<=maxT; j++){
 
 
@@ -1239,7 +1239,12 @@ int main(int argc, char *argv[]){
             unsigned int serialIdx2=returnIndex(x,j,maxKF,closeLoop);  //S(Q0,t0)
 
             cout<<"T1 is \n"<<T1<<"\n T2 is \n"<<T2<<endl;
+            if( T1.isIdentity()||T2.isIdentity()){
 
+                continue;
+
+
+            }
             Eigen::Matrix4d T = T1 * T2;
 
             //T= T;
@@ -1257,15 +1262,15 @@ int main(int argc, char *argv[]){
 
 
 
-            if (serialIdx2!=serialIdx1){
+      //      if (serialIdx2!=serialIdx1){
 
-                graphInput << serialIdx1<<","<< serialIdx2<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
-            }
+        //        graphInput << serialIdx1<<","<< serialIdx2<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+         //   }
 
         }
 
 
-        /*
+
 
         float p=0.1;
         while(true){
@@ -1299,7 +1304,7 @@ int main(int argc, char *argv[]){
                 tf::Quaternion q=dataOut[k].back().q;
                 tf::Vector3 t=dataOut[k].back().t;
 
-               // T= T111*T*T222.inverse();
+                // T= T111*T*T222.inverse();
 
 
                 if (serialIdx2!=serialIdx1){
@@ -1312,7 +1317,6 @@ int main(int argc, char *argv[]){
 
         }
 
-        */
 
     }
 
@@ -1320,7 +1324,7 @@ int main(int argc, char *argv[]){
     graphInitialEstimate<<std::fixed<<setprecision(20);
     std::cout<<"max nodes is "<<maxNodes<<endl;
     std::default_random_engine generator;
-    se3 prevT=olTransforms[sNode][0];
+    // se3 prevT=olTransforms[sNode][0];
     const double mean = 0.0;
     for (int i=sNode; i<=maxKF;i++){
 
@@ -1330,13 +1334,14 @@ int main(int argc, char *argv[]){
             const double translationCoeff=50;
 
             se3 T=olTransforms[i-sNode][j];
-            Eigen::Quaterniond q0(T.q.w(),T.q.x(),T.q.y(),T.q.z());
+            /*    Eigen::Quaterniond q0(T.q.w(),T.q.x(),T.q.y(),T.q.z());
             Eigen::Matrix3d rot(q0);
             Eigen::Matrix4d tMat=Eigen::Matrix4d::Identity();
 
             tMat(0,3)=T.t.x();
             tMat(1,3)=T.t.y();
             tMat(2,3)=T.t.z();
+            tMat.block(0,0,3,3)=rot;
 
             if (i>sNode && tMat.isIdentity()){
 
@@ -1345,11 +1350,11 @@ int main(int argc, char *argv[]){
 
             }
 
-            else{
-                prevT=T;
+        //    else{
+       //         prevT=T;
 
-            }
-
+          //  }
+*/
             int nodeIdx=returnIndex(i,j,maxKF,closeLoop); //S(Q1,t0)
             double x=T.t.x();
             double y=T.t.y();
