@@ -88,9 +88,21 @@ struct DataMetric {
 };
 */
 
+
+bool is_number(const std::string& s)
+{
+    std::string::const_iterator it = s.begin();
+    while (it != s.end() && std::isdigit(*it)) ++it;
+    return !s.empty() && it == s.end();
+}
+
+
 tf::Vector3 QLog(const tf::Quaternion & q) {
     return q.getAngle() * q.getAxis();
 }
+
+
+
 
 tf::Quaternion QExp(tf::Vector3 v) {
     double angle = v.length();
@@ -481,10 +493,11 @@ se3 se3Mult(se3 data1, se3 data2){
 
 int main(int argc, char *argv[]){
 
-    float closeLoopUncertainty=0.5;
+    float closeLoopUncertainty=0.01;
 
     YAML::Node config = YAML::LoadFile("../config.yaml");
     std::string loopCloseStr = config["closeLoop"].as<std::string>();
+    std::string transformsFile = config["transforms"].as<std::string>();
 
     bool closeLoop=false;
 
@@ -501,7 +514,7 @@ int main(int argc, char *argv[]){
     graphInput.open("graph_input.csv");
     graphInitialEstimate.open("graph_initial_estimate.csv");
     //---------------------------------------------------------
-    std::ifstream infile("transforms.csv");
+    std::ifstream infile(transformsFile);
 
     //double x, y, z, qx, qy, qz, qw;
     std::string KF;
@@ -523,10 +536,37 @@ int main(int argc, char *argv[]){
         }
         transforms.push_back(result);
     }
-    string maxKFStr=transforms.back()[0];
-    std::string::size_type sz;   // alias of size_t
 
-    unsigned int maxKF = std::stoi (maxKFStr,&sz);
+
+    unsigned int maxKF = 1;
+    std::string::size_type sz;
+    for (int i=0; i<transforms.size(); i++){
+
+        string maxKFStr=transforms[i][0];
+
+
+        if (!is_number(maxKFStr)){
+            continue;
+        }
+
+        // alias of size_t
+        int currentMaxKf = std::stoi (maxKFStr,&sz);
+
+        if (currentMaxKf>maxKF){
+
+            maxKF=currentMaxKf;
+        }
+    }
+
+    //string maxKFStr=transforms.back()[0];
+
+    //  std::string::size_type sz;   // alias of size_t
+
+    //unsigned int maxKF = std::stoi (maxKFStr,&sz);
+
+
+
+
     std::cout<<"maxKF is "<<maxKF<<std::endl;
 
 
@@ -661,20 +701,20 @@ int main(int argc, char *argv[]){
 
 
                 std::vector<std::vector<se3>> dataOut;
-                float x=0.1;
+                float x=0.01;
                 DataMetric::trans_weight = 1.0/x;
                 DataMetric::rot_weight = 1.0/x;
                 while(true){
 
                     dataOut=dMeansSe3Fn(localSe3Set);
 
-                    if(localSe3Set.size()>dataOut.size() || x>1 )
+                    if(localSe3Set.size()>dataOut.size() || x>0.5 )
                     {
                         break;
                     }
                     else
                     {
-                        x=x+0.1;
+                        x=x+0.05;
                         DataMetric::trans_weight = 1.0/x;
                         DataMetric::rot_weight = 1.0/x;
 
@@ -808,7 +848,7 @@ int main(int argc, char *argv[]){
             //  cout<<"index is "<<(i)*(maxT+1)+j<<endl;
             // double cError=lowestT0Error[(i)*(maxT+1)+j];
             double cError=errorVec[j][i-sNode];
-            std::cout<<cError<<endl;
+            // std::cout<<cError<<endl;
             if (cError<lowestError )
             {
                 lowestError=cError;
@@ -822,14 +862,14 @@ int main(int argc, char *argv[]){
         for (unsigned int j=0; j<=maxT; j++){
             if (j==selectedT){
                 temporalTfsTemp.push_back(se3(tf::Vector3(0,0,0),tf::Quaternion::getIdentity()));
-                temporalUncertaintyFilteredTemp.push_back(0.1);
+                temporalUncertaintyFilteredTemp.push_back(0.015);
                 continue;
             }
             tf::Quaternion qSelected=tfVecData[selectedT][i-sNode][j].q;
             tf::Vector3 tSelected=tfVecData[selectedT][i-sNode][j].t;
             temporalTfsTemp.push_back(se3(tSelected, qSelected));
             temporalUncertaintyFilteredTemp.push_back(temporalUncertainty[selectedT][i-sNode][j]);
-            cout<<qSelected.x()<<" "<<qSelected.y()<<" "<<qSelected.z()<<" "<<qSelected.w()<<" "<<tSelected.x()<<" "<<tSelected.y()<<" "<<tSelected.z()<<endl;
+            //   cout<<qSelected.x()<<" "<<qSelected.y()<<" "<<qSelected.z()<<" "<<qSelected.w()<<" "<<tSelected.x()<<" "<<tSelected.y()<<" "<<tSelected.z()<<endl;
         }
 
         temporalTfs.push_back(temporalTfsTemp);
@@ -940,20 +980,20 @@ int main(int argc, char *argv[]){
 
         }
         std::vector<std::vector<se3>> dataOut;
-        float x=0.1;
+        float x=0.01;
         DataMetric::trans_weight = 1.0/x;
         DataMetric::rot_weight = 1.0/x;
         while(true){
 
             dataOut=dMeansSe3Fn(localSe3Set);
 
-            if(localSe3Set.size()>dataOut.size() || x>1 )
+            if(localSe3Set.size()>dataOut.size() || x>1.2 )
             {
                 break;
             }
             else
             {
-                x=x+0.1;
+                x=x+0.05;
                 DataMetric::trans_weight = 1.0/x;
                 DataMetric::rot_weight = 1.0/x;
 
@@ -1128,13 +1168,14 @@ int main(int argc, char *argv[]){
         unsigned int t0=parentFrames[i-sNode];
         unsigned int t1=parentFrames[i+1-sNode];
         double uncertainty=uncertaintyCoeff[i+1-sNode]*1; //because links to previous frame, here linking to forward frame ~0~10 m
+        unsigned int serialIdx1=returnIndex(i,t0,maxKF,closeLoop); //S(Q1,t0)
         for (int j=0; j<=maxT; j++){
 
 
 
             double temporalUncertaintyDouble = temporalUncertaintyFiltered[i-sNode][j];
             unsigned int serialIdx0=returnIndex(i,j,maxKF,closeLoop);  //S(Q0,t0)     //each kf is represented by a node tied to the node to the right and the node below it.
-            unsigned int serialIdx1=returnIndex(i,t0,maxKF,closeLoop); //S(Q1,t0)
+
             unsigned int serialIdx2; //(SQ0,t1)
 
             se3 L1=temporalTfs[i-sNode][j];
@@ -1145,26 +1186,33 @@ int main(int argc, char *argv[]){
 
             //  L1=se3Mult(L1,TQ1);
             //   L2=se3Mult(L2,TQ2);
-            if (serialIdx0!=serialIdx1 ){
 
-                //  se3 L1=se3Inverse(L1);
-                graphInput << serialIdx1<<","<< serialIdx0<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
-            }
 
             if (j==t0){
                 serialIdx2=returnIndex(i+1,t1,maxKF,closeLoop);
-                graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w()<<","<<uncertainty  <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+                graphInput << serialIdx0<<","<< serialIdx2<<","<< L2.t.x()<<","<< L2.t.y()<<","<<L2.t.z()<<","<<L2.q.x()<<","<< L2.q.y()<<","<<L2.q.z()<<","<< L2.q.w()<<","<<uncertainty<<std::endl;       //uncertainty  <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
             }
-            if (i==maxKF-1 ){//handle spatial loop closure constraint
 
-                t0=parentFrames[maxKF-sNode];
+            if (serialIdx0!=serialIdx1 && j!=t0 ){
+
+                //  se3 L1=se3Inverse(L1);
+                graphInput << serialIdx1<<","<< serialIdx0<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+
+                //   cout<<"tuD0 is "<<temporalUncertaintyDouble<<endl;
+            }
+
+
+            if (i==maxKF-1 && j!=t1){
+
+
                 temporalUncertaintyDouble = temporalUncertaintyFiltered[maxKF-sNode][j];
                 serialIdx0=returnIndex(maxKF,j,maxKF,closeLoop);
-                serialIdx1=returnIndex(maxKF,t0,maxKF,closeLoop);
+                serialIdx1=returnIndex(maxKF,t1,maxKF,closeLoop);
                 L1=temporalTfs[maxKF-sNode][j];
                 if (serialIdx0!=serialIdx1 ){
                     //se3 L1=se3Inverse(L1);
-                    graphInput << serialIdx1<<","<< serialIdx0<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+                    // cout<<"tuD1 is "<<temporalUncertaintyDouble<<endl;
+                    graphInput << serialIdx1<<","<< serialIdx0<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<< temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
                 }
 
 
@@ -1248,7 +1296,7 @@ int main(int argc, char *argv[]){
             Eigen::Matrix4d T = T1 * T2;
 
             //T= T;
-             T=  T111*T*T222.inverse();
+            T=  T111*T*T222.inverse();
 
             Eigen::Matrix3d R=T.block(0,0,3,3);
             Eigen::Quaterniond qd(R);
@@ -1262,10 +1310,10 @@ int main(int argc, char *argv[]){
 
 
 
-      //      if (serialIdx2!=serialIdx1){
+            //      if (serialIdx2!=serialIdx1){
 
-        //        graphInput << serialIdx1<<","<< serialIdx2<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
-         //   }
+            //        graphInput << serialIdx1<<","<< serialIdx2<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+            //   }
 
         }
 
@@ -1311,11 +1359,25 @@ int main(int argc, char *argv[]){
                     std::cout<<"Serial Idx1 is "<<serialIdx1<<std::endl;
                     std::cout<<"Serial Idx2 is "<<serialIdx2<<std::endl;
                     graphInput << serialIdx1<<","<< serialIdx2<<","<< t.x()<<","<< t.y()<<","<<t.z()<<","<<q.x()<<","<< q.y()<<","<<q.z()<<","<< q.w()<<","<<closeLoopUncertainty <<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+
+                    /*     for (int kk=0; kk<=maxT; kk++){
+                        serialIdx1=returnIndex(0,kk,maxKF,closeLoop);
+                          serialIdx2=returnIndex(communX,kk ,maxKF,closeLoop);  //S(Q0,t0)
+                        graphInput << serialIdx1<<","<< serialIdx2<<","<< t.x()<<","<< t.y()<<","<<t.z()<<","<<q.x()<<","<< q.y()<<","<<q.z()<<","<< q.w()<<","<<closeLoopUncertainty <<std::endl;
+
+                   } */
+
                 }
                 break;
             }
 
         }
+
+
+
+
+
+
 
 
     }
