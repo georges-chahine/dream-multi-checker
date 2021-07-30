@@ -493,7 +493,7 @@ se3 se3Mult(se3 data1, se3 data2){
 
 int main(int argc, char *argv[]){
 
-    float closeLoopUncertainty=0.01;
+    float closeLoopUncertainty=0.1;
 
     YAML::Node config = YAML::LoadFile("../config.yaml");
     std::string loopCloseStr = config["closeLoop"].as<std::string>();
@@ -1165,8 +1165,9 @@ int main(int argc, char *argv[]){
     for (int i=sNode; i<maxKF;i++){
         se3 L2=spatialVecData[i+1-sNode];
 
-        unsigned int t0=parentFrames[i-sNode];
-        unsigned int t1=parentFrames[i+1-sNode];
+        unsigned int t0=parentFrames[i-sNode]; //reference time period for current keyframe
+        unsigned int t1=parentFrames[i+1-sNode]; //reference time period for next keyframe
+
         double uncertainty=uncertaintyCoeff[i+1-sNode]*1; //because links to previous frame, here linking to forward frame ~0~10 m
         unsigned int serialIdx1=returnIndex(i,t0,maxKF,closeLoop); //S(Q1,t0)
         for (int j=0; j<=maxT; j++){
@@ -1176,7 +1177,7 @@ int main(int argc, char *argv[]){
             double temporalUncertaintyDouble = temporalUncertaintyFiltered[i-sNode][j];
             unsigned int serialIdx0=returnIndex(i,j,maxKF,closeLoop);  //S(Q0,t0)     //each kf is represented by a node tied to the node to the right and the node below it.
 
-            unsigned int serialIdx2; //(SQ0,t1)
+            unsigned int serialIdx2, serialIdx3, serialIdx4; //(SQ0,t1)
 
             se3 L1=temporalTfs[i-sNode][j];
 
@@ -1206,24 +1207,23 @@ int main(int argc, char *argv[]){
 
 
                 temporalUncertaintyDouble = temporalUncertaintyFiltered[maxKF-sNode][j];
-                serialIdx0=returnIndex(maxKF,j,maxKF,closeLoop);
-                serialIdx1=returnIndex(maxKF,t1,maxKF,closeLoop);
+                serialIdx3=returnIndex(maxKF,j,maxKF,closeLoop);
+                serialIdx4=returnIndex(maxKF,t1,maxKF,closeLoop);
                 L1=temporalTfs[maxKF-sNode][j];
                 if (serialIdx0!=serialIdx1 ){
                     //se3 L1=se3Inverse(L1);
                     // cout<<"tuD1 is "<<temporalUncertaintyDouble<<endl;
-                    graphInput << serialIdx1<<","<< serialIdx0<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<< temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
+                    graphInput << serialIdx4<<","<< serialIdx3<<","<< L1.t.x()<<","<< L1.t.y()<<","<<L1.t.z()<<","<<L1.q.x()<<","<< L1.q.y()<<","<<L1.q.z()<<","<< L1.q.w()<<","<< temporalUncertaintyDouble<<std::endl;   //from node, to node, x,y,z,qx,qy,qz,qw,uncertainty
                 }
-
-
             }
+
 
 
 
         }
 
     }
-
+    // //////////////////////////////////////////////////////////// loop closure /////////////////
     if(closeLoop){
         std::vector<std::vector<se3>> dataOut;
         DataSetSe3 localSe3SetLoopClosure;
