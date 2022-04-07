@@ -1,3 +1,3 @@
 # dream-multi-checker
 
-transformation checker using Xmeans
+transformation checker using Dmeans
